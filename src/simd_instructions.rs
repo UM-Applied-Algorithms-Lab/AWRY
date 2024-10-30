@@ -1,7 +1,8 @@
+use std::arch::x86_64::_mm256_set_epi64x;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __m256i, _mm256_and_si256, _mm256_andnot_si256, _mm256_extract_epi64, _mm256_load_si256,
-     _mm256_or_si256, _mm256_setzero_si256,
+    _mm256_or_si256, _mm256_setzero_si256,
 };
 
 #[cfg(target_arch = "aarch64")]
@@ -47,6 +48,16 @@ impl SimdVec256 {
             }
         }
     }
+
+    pub fn as_one_hot(bit_index: usize) -> SimdVec256 {
+        let mut vals = AlignedVectorArray::new();
+        vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
+        unsafe {
+            SimdVec256 {
+                data: _mm256_load_si256(vals.data.as_ptr() as *const __m256i),
+            }
+        }
+    }
     pub fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
@@ -68,7 +79,7 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
+    pub fn masked_popcount(&self, local_query_position: usize) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 
@@ -105,7 +116,18 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn and(&self, vec2:&SimdVec256)->SimdVec256{
+
+    pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
+        let mut vals = AlignedVectorArray::new();
+        vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
+        unsafe {
+            SimdVec256 {
+                data: vld1q_u8_x2(vals.data.as_ptr() as *const u8),
+            }
+        }
+    }
+
+    pub fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
@@ -115,7 +137,7 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn or(&self, vec2:&SimdVec256)->SimdVec256{
+    pub fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
@@ -125,7 +147,7 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn andnot(&self, vec2:&SimdVec256)->SimdVec256{
+    pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
@@ -135,21 +157,25 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn masked_popcount(&self, local_query_position: u64)->u32{
+    pub fn masked_popcount(&self, local_query_position: usize) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
-    
+
         for bitmask_word_idx in 0..bitmask_quad_word_index {
             bitmasks[bitmask_word_idx] = !0;
         }
         bitmasks[bitmask_quad_word_index] = !0 >> (63 - (local_query_position % 64));
-    
+
         let mut popcount = 0;
         unsafe {
-            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 0)as u64 & bitmasks[0]).count_ones();
-            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 1) & bitmasks[1]).count_ones();
-            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 0) & bitmasks[2]).count_ones();
-            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 1) & bitmasks[3]).count_ones();
+            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 0) as u64 & bitmasks[0])
+                .count_ones();
+            popcount +=
+                (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 1) & bitmasks[1]).count_ones();
+            popcount +=
+                (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 0) & bitmasks[2]).count_ones();
+            popcount +=
+                (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 1) & bitmasks[3]).count_ones();
         }
         return popcount;
     }

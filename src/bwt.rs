@@ -41,7 +41,7 @@ impl NucleotideBwtBlock {
     }
 
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: u64, letter_idx: u8) -> u64 {
+    pub fn global_occurrence(&self, local_query_position: usize, letter_idx: u8) -> u64 {
         let milestone_count = self.get_milestone(letter_idx);
         let vectors = &self.bit_vectors;
         let occurrence_vector = match letter_idx {
@@ -82,7 +82,7 @@ impl AminoBwtBlock {
         return self.milestones[letter_idx as usize];
     }
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: u64, letter_idx: u8) -> usize {
+    pub fn global_occurrence(&self, local_query_position: usize, letter_idx: u8) -> usize {
         let milestone_count = self.get_milestone(letter_idx);
         let vecs = &self.bit_vectors;
         let occurrence_vector = match letter_idx {
@@ -132,26 +132,19 @@ impl Bwt {
         //find the block, byte, and bit of the data we're setting
         let position_block_idx: usize = (btw_position / NUM_POSITIONS_PER_BLOCK) as usize;
         let position_in_block = btw_position % NUM_POSITIONS_PER_BLOCK;
-        //each data element in the SIMD vector is 64 bits, so we're finding the element
-        //and bit in the element here.
-        let element_position_in_block: usize = position_in_block as usize / 64;
-        let bit_position_in_element = position_in_block % 64;
 
         //create a bitmask, we'll use this to set the bit with an OR operation
-
-        let mut bitmask_array = AlignedVectorArray::new();
-        bitmask_array.data[element_position_in_block] = 1 << bit_position_in_element;
-        let vector_bitmask = SimdVec256::new(bitmask_array.data);
+        let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
 
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
             if encoded_symbol & 0x1 == 0 {
                 match self {
                     Bwt::Nucleotide(vec) => {
-                        vec[position_block_idx].bit_vectors[bit_vector_idx].bitor(vector_bitmask);
+                        vec[position_block_idx].bit_vectors[bit_vector_idx].or(&vector_bitmask);
                     }
                     Bwt::Amino(vec) => {
-                        vec[position_block_idx].bit_vectors[bit_vector_idx].bitor(vector_bitmask);
+                        vec[position_block_idx].bit_vectors[bit_vector_idx].or(&vector_bitmask);
                     }
                 }
             }
