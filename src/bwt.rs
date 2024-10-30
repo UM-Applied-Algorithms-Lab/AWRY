@@ -60,6 +60,7 @@ impl NucleotideBwtBlock {
         //generate the position bitmask
 
         return popcount as u64 + milestone_count;
+        todo!("check to make sure the occurrence calculations are correct!");
     }
 }
 
@@ -114,6 +115,7 @@ impl AminoBwtBlock {
 
         let popcount = occurrence_vector.masked_popcount(local_query_position);
         return popcount as usize + milestone_count as usize;
+        todo!("check to make sure the occurrence calculations are correct!");
     }
 }
 
