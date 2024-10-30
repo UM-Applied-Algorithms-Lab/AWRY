@@ -1,0 +1,32 @@
+[package]
+name = "sufr_bwt"
+version = "0.0.1"
+description = "Generates a Burrows-Sheeler transform from the sufr suffix array library, and implements the count() function."
+license = "BSD-3-Clause"
+repository = "https://github.com/UM-Applied-Algorithms-Lab/sufr_bwt"
+authors = [
+    "Tim Anderson <tim.anderson@umontana.edu"
+]
+
+
+
+# Example of customizing the library in Cargo.toml.
+[lib]
+crate-type = ["lib"]
+path = "src/lib.rs"
+
+
+# [profile.release]
+rustflags = ["-C", "target-cpu=native"]
+
+
+
+[dependencies]
+anyhow = "1.0.91"
+clap = { version = "4.5.13", features = ["derive"] }
+libsufr = "0.2.2"
+num = "0.4.3"
+sufr = "0.2.2"
+wide = "0.7.28"
+
+[dev-dependencies]
