@@ -59,7 +59,7 @@ impl NucleotideBwtBlock {
 
         //generate the position bitmask
 
-        return popcount as u64 + milestone_count;
+        return milestone_count + popcount as u64;
     }
 }
 
@@ -81,7 +81,7 @@ impl AminoBwtBlock {
         return self.milestones[letter_idx as usize];
     }
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: usize, letter_idx: u8) -> usize {
+    pub fn global_occurrence(&self, local_query_position: usize, letter_idx: u8) -> u64 {
         let milestone_count = self.get_milestone(letter_idx);
         let vecs = &self.bit_vectors;
         let occurrence_vector = match letter_idx {
@@ -113,7 +113,7 @@ impl AminoBwtBlock {
         };
 
         let popcount = occurrence_vector.masked_popcount(local_query_position);
-        return popcount as usize + milestone_count as usize;
+        return milestone_count + popcount as u64;
     }
 }
 
@@ -163,7 +163,7 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].milestones[letter_idx as usize],
         };
     }
-    pub fn global_occurrence(&self, pointer_global_position: usize, letter_idx: u8) -> usize {
+    pub fn global_occurrence(&self, pointer_global_position: usize, letter_idx: u8) -> u64 {
         let block_idx: usize = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
         let local_query_position: usize = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
 
