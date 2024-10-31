@@ -45,9 +45,9 @@ impl NucleotideBwtBlock {
         let milestone_count = self.get_milestone(letter_idx);
         let vectors = &self.bit_vectors;
         let occurrence_vector = match letter_idx {
-            0 => vectors[1].and(&vectors[2]), //A:    0b110
-            1 => vectors[0].and(&vectors[2]), //C:    0b101
-            2 => vectors[0].and(&vectors[1]), //G:    0b011
+            0 => vectors[2].and(&vectors[1]), //A:    0b110
+            1 => vectors[2].and(&vectors[0]), //C:    0b101
+            2 => vectors[1].and(&vectors[0]), //G:    0b011
             3 => vectors[2].andnot(&vectors[1].andnot(&vectors[0])), //T:    0b001
             4 => vectors[2].andnot(&vectors[0].andnot(&vectors[1])), //N:    0b010
             _ => {
@@ -60,7 +60,6 @@ impl NucleotideBwtBlock {
         //generate the position bitmask
 
         return popcount as u64 + milestone_count;
-        todo!("check to make sure the occurrence calculations are correct!");
     }
 }
 
@@ -115,7 +114,6 @@ impl AminoBwtBlock {
 
         let popcount = occurrence_vector.masked_popcount(local_query_position);
         return popcount as usize + milestone_count as usize;
-        todo!("check to make sure the occurrence calculations are correct!");
     }
 }
 
