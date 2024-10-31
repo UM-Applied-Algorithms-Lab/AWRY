@@ -65,9 +65,9 @@ pub fn ascii_to_encoded(symbol: &char, alphabet: &Alphabet) -> u8 {
         Alphabet::Nucleotide => match symbol {
             '#' | '$' => 0b100,
             'A' | 'a' => 0b110,
-            'C' | 'c' => 0b011,
-            'G' | 'g' => 0b101,
-            'T' | 't' | 'U' | 'u' => 0b111,
+            'C' | 'c' => 0b101,
+            'G' | 'g' => 0b011,
+            'T' | 't' | 'U' | 'u' => 0b010,
 
             _ => 0b000,
         },
