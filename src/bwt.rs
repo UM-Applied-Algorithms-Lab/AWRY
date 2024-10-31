@@ -1,6 +1,4 @@
-use crate::alphabet::{alphabet_cardinality, ascii_to_encoded, ascii_to_index};
-use crate::simd_instructions::{AlignedVectorArray, SimdVec256};
-use alphabet::Alphabet;
+use crate::simd_instructions::SimdVec256;
 
 pub const NUM_NUCLEOTIDE_MILESTONES: usize = 8; //4 nucs, plus N, and $, padded to 8
 pub const NUM_AMINO_MILESTONES: usize = 24; //20 AAs, plus X, and $, padded to 24
