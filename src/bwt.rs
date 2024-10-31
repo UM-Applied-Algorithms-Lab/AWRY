@@ -46,8 +46,8 @@ impl NucleotideBwtBlock {
             0 => vectors[2].and(&vectors[1]), //A:    0b110
             1 => vectors[2].and(&vectors[0]), //C:    0b101
             2 => vectors[1].and(&vectors[0]), //G:    0b011
-            3 => vectors[2].andnot(&vectors[1].andnot(&vectors[0])), //T:    0b001
-            4 => vectors[2].andnot(&vectors[0].andnot(&vectors[1])), //N:    0b010
+            3 => vectors[2].andnot(&vectors[0].andnot(&vectors[1])), //N:    0b010
+            4 => vectors[2].andnot(&vectors[1].andnot(&vectors[0])), //T:    0b001
             _ => {
                 panic!("illegal letter index given in global occurrence function");
             } //assume every other character is an N, since it's illegal to search for a sentinel
@@ -102,8 +102,8 @@ impl AminoBwtBlock {
             16 => vecs[2].and(&vecs[4].andnot(&vecs[0])), //T:    0b00101
             17 => vecs[3].andnot(&vecs[0].andnot(&vecs[4])), //V:    0b10110
             18 => vecs[3].or(&vecs[2]).andnot(&vecs[1].andnot(&vecs[0])), //W:    0b00001
-            19 => vecs[0].or(&vecs[2]).andnot(&vecs[3].andnot(&vecs[1])), //Y:    0b00010
-            20 => vecs[3].and(&vecs[2]).and(&vecs[1].and(&vecs[0])), //Ambiguity character:  0b11111
+            19 => vecs[3].and(&vecs[2]).and(&vecs[1].and(&vecs[0])), //Ambiguity character X:  0b11111
+            20 => vecs[0].or(&vecs[2]).andnot(&vecs[3].andnot(&vecs[1])), //Y:    0b00010
             // 0b00000 is sentinel, but since you can't search for sentinels, it is not included here.
             _ => {
                 panic!("illegal letter index given in global occurrence function");

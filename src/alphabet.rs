@@ -29,8 +29,8 @@ pub fn ascii_to_index(symbol: &char, alphabet: &Alphabet) -> u8 {
             'A' | 'a' => 1,
             'C' | 'c' => 2,
             'G' | 'g' => 3,
-            'T' | 't' | 'U' | 'u' => 4,
-            _ => 5,
+            'T' | 't' | 'U' | 'u' => 5,
+            _ => 4,
         },
         Alphabet::Amino => match symbol {
             '#' | '$' => 0,
@@ -73,7 +73,6 @@ pub fn ascii_to_encoded(symbol: &char, alphabet: &Alphabet) -> u8 {
         },
         Alphabet::Amino => match symbol {
             '#' | '$' => 0b00000,
-
             'A' | 'a' => 0b01100,
             'C' | 'c' => 0b10111,
             'D' | 'd' => 0b00011,
