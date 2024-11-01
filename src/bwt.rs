@@ -1,4 +1,10 @@
-use crate::{alphabet::Symbol, search::SearchPtr, simd_instructions::SimdVec256};
+use std::arch::x86_64::_mm256_extract_epi64;
+
+use crate::{
+    alphabet::{Symbol, SymbolAlphabet},
+    search::SearchPtr,
+    simd_instructions::SimdVec256,
+};
 
 pub const NUM_NUCLEOTIDE_MILESTONES: usize = 8; //4 nucs, plus N, and $, padded to 8
 pub const NUM_AMINO_MILESTONES: usize = 24; //20 AAs, plus X, and $, padded to 24
@@ -124,10 +130,10 @@ impl Bwt {
     /// sets a single symbol at the given position in the bwt bit vectors.
     /// this function is meant to be run for every position in the bwt
     /// as a part of BWT data creation
-    pub fn set_symbol_at(&self, btw_position: u64, symbol: &Symbol) {
+    pub fn set_symbol_at(&self, bwt_position: &SearchPtr, symbol: &Symbol) {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx = btw_position / NUM_POSITIONS_PER_BLOCK;
-        let position_in_block = btw_position % NUM_POSITIONS_PER_BLOCK;
+        let position_block_idx = bwt_position / NUM_POSITIONS_PER_BLOCK;
+        let position_in_block = bwt_position % NUM_POSITIONS_PER_BLOCK;
 
         //create a bitmask, we'll use this to set the bit with an OR operation
         let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
@@ -138,10 +144,12 @@ impl Bwt {
             if encoded_symbol & 0x1 == 0 {
                 match self {
                     Bwt::Nucleotide(vec) => {
-                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx]
+                            .or(&vector_bitmask);
                     }
                     Bwt::Amino(vec) => {
-                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx]
+                            .or(&vector_bitmask);
                     }
                 }
             }
@@ -213,13 +221,22 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].milestones[letter_idx as usize],
         };
     }
-    pub fn global_occurrence(&self, pointer_global_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
+    pub fn global_occurrence(
+        &self,
+        pointer_global_position: SearchPtr,
+        symbol: &Symbol,
+    ) -> SearchPtr {
         let block_idx: u64 = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
         let local_query_position: u64 = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
 
         match self {
-            Bwt::Nucleotide(vec) => vec[block_idx as usize].global_occurrence(local_query_position, symbol),
-            Bwt::Amino(vec) => vec[block_idx as usize].global_occurrence(local_query_position, symbol),
+            Bwt::Nucleotide(vec) => {
+                vec[block_idx as usize].global_occurrence(local_query_position, symbol)
+            }
+
+            Bwt::Amino(vec) => {
+                vec[block_idx as usize].global_occurrence(local_query_position, symbol)
+            }
         }
     }
 }
