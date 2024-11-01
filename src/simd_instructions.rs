@@ -1,4 +1,3 @@
-use std::arch::x86_64::_mm256_set_epi64x;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __m256i, _mm256_and_si256, _mm256_andnot_si256, _mm256_extract_epi64, _mm256_load_si256,
