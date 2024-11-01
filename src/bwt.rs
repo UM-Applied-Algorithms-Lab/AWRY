@@ -150,6 +150,57 @@ impl Bwt {
         }
     }
 
+    pub fn get_symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
+        //find the block, byte, and bit of the data we're setting
+        let position_block_idx = bwt_position / NUM_POSITIONS_PER_BLOCK;
+        let position_in_block = bwt_position % NUM_POSITIONS_PER_BLOCK;
+        let word_in_block = position_in_block / 64;
+        let bit_in_block_word = position_in_block % 64;
+
+        let mut bit_vector_encoding: u64 = 0;
+        match &self {
+            Bwt::Nucleotide(vec) => {
+                let alphabet = SymbolAlphabet::Nucleotide;
+                let bwt_block = &vec[position_block_idx as usize];
+
+                for bit in 0..bwt_block.bit_vectors.len() {
+                    unsafe {
+                        let mut bit_value = match word_in_block {
+                            0 => _mm256_extract_epi64::<0>(bwt_block.bit_vectors[bit].data) as u64,
+                            1 => _mm256_extract_epi64::<1>(bwt_block.bit_vectors[bit].data) as u64,
+                            2 => _mm256_extract_epi64::<2>(bwt_block.bit_vectors[bit].data) as u64,
+                            _ => _mm256_extract_epi64::<3>(bwt_block.bit_vectors[bit].data) as u64,
+                        };
+                        bit_value >>= bit_in_block_word;
+                        bit_vector_encoding |= bit_value << bit;
+                    }
+                }
+
+                Symbol::new_bit_vector(alphabet, bit_vector_encoding as u8)
+            }
+
+            Bwt::Amino(vec) => {
+                let alphabet = SymbolAlphabet::Nucleotide;
+                let bwt_block = &vec[position_block_idx as usize];
+
+                for bit in 0..bwt_block.bit_vectors.len() {
+                    unsafe {
+                        let mut bit_value = match word_in_block {
+                            0 => _mm256_extract_epi64::<0>(bwt_block.bit_vectors[bit].data) as u64,
+                            1 => _mm256_extract_epi64::<1>(bwt_block.bit_vectors[bit].data) as u64,
+                            2 => _mm256_extract_epi64::<2>(bwt_block.bit_vectors[bit].data) as u64,
+                            _ => _mm256_extract_epi64::<3>(bwt_block.bit_vectors[bit].data) as u64,
+                        };
+                        bit_value >>= bit_in_block_word;
+                        bit_vector_encoding |= bit_value << bit;
+                    }
+                }
+
+                Symbol::new_bit_vector(alphabet, bit_vector_encoding as u8)
+            }
+        }
+    }
+
     pub fn set_milestones(&mut self, block_idx: usize, counts: &Vec<u64>) {
         match self {
             Bwt::Nucleotide(vec) => vec[block_idx].set_milestones(counts),
