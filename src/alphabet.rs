@@ -53,10 +53,12 @@ impl Symbol {
         }
     }
 
+    #[inline]
     pub fn index(&self) -> u8 {
-        match self.to_index().encoding {
-            SymbolEncoding::Index(index) => index,
-            _ => panic!("unable to get index encoding, this should not be possible logically."),
+        if let SymbolEncoding::Index(encoding) = self.to_index().encoding {
+            return encoding;
+        } else {
+            panic!("unable to get index encoding, this should not be possible logically.");
         }
     }
 
