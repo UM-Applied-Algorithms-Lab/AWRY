@@ -97,6 +97,20 @@ impl SimdVec256 {
 
         return popcount;
     }
+    pub fn get_bit(&self, bit_idx: &u64) -> u64 {
+        let word_idx = bit_idx / 64;
+        let bit_idx = bit_idx % 64;
+        unsafe {
+            //extract the word containing the bit we want. the index must be compile time constant, so do it in a match
+            (match word_idx {
+                0 => _mm256_extract_epi64::<0>(self.data) as u64,
+                1 => _mm256_extract_epi64::<1>(self.data) as u64,
+                2 => _mm256_extract_epi64::<2>(self.data) as u64,
+                _ => _mm256_extract_epi64::<3>(self.data) as u64,
+            } >> bit_idx)   //shift the bit we want into bit 0.
+                & 1 //only keep the bit we care about
+        }
+    }
 }
 
 #[cfg(target_arch = "aarch64")]
