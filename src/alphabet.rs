@@ -1,4 +1,4 @@
-enum SymbolEncoding {
+pub enum SymbolEncoding {
     Ascii(char),
     Index(u8),
     BitVector(u8),
@@ -10,22 +10,21 @@ pub enum SymbolAlphabet {
     Amino,
 }
 
-struct Symbol {
+pub struct Symbol {
     alphabet: SymbolAlphabet,
     encoding: SymbolEncoding,
 }
-enum BwtNucleotideSymbol {
+pub enum BwtNucleotideSymbol {
     Ascii(char),
     Index(u8),
     BitVector(u8),
 }
 
-enum BwtAminoSymbol {
+pub enum BwtAminoSymbol {
     Ascii(u8),
     Index(u8),
     BitVector(u8),
 }
-
 
 pub fn alphabet_cardinality(alphabet: &SymbolAlphabet) -> u8 {
     match alphabet {
@@ -51,6 +50,13 @@ impl Symbol {
         Symbol {
             alphabet,
             encoding: SymbolEncoding::BitVector(bit_vector),
+        }
+    }
+
+    pub fn index(&self) -> u8 {
+        match self.to_index().encoding {
+            SymbolEncoding::Index(index) => index,
+            _ => panic!("unable to get index encoding, this should not be possible logically."),
         }
     }
 
