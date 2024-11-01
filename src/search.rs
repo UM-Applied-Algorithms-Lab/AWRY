@@ -1,15 +1,17 @@
 use crate::fm_index::FmIndex;
 
+/// Type representing a position in the BWT
+pub type SearchPtr = u64;
 pub struct SearchRange {
-    pub start_ptr: usize,
-    pub end_ptr: usize,
+    pub start_ptr: SearchPtr,
+    pub end_ptr: SearchPtr,
 }
 
 impl SearchRange {
     pub fn new(fm_index: &FmIndex) -> Self {
         SearchRange {
             start_ptr: (0),
-            end_ptr: (fm_index.len()),
+            end_ptr: (fm_index.len() as SearchPtr),
         }
     }
 
@@ -19,7 +21,7 @@ impl SearchRange {
     }
 
     ///gets the number of elements represented by the search range
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> SearchPtr {
         if self.start_ptr > self.end_ptr {
             0
         } else {

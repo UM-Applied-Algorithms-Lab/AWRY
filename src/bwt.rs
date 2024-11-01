@@ -1,4 +1,4 @@
-use crate::{alphabet::Symbol, simd_instructions::SimdVec256};
+use crate::{alphabet::Symbol, search::SearchPtr, simd_instructions::SimdVec256};
 
 pub const NUM_NUCLEOTIDE_MILESTONES: usize = 8; //4 nucs, plus N, and $, padded to 8
 pub const NUM_AMINO_MILESTONES: usize = 24; //20 AAs, plus X, and $, padded to 24
@@ -79,7 +79,7 @@ impl AminoBwtBlock {
         return self.milestones[symbol.index() as usize];
     }
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
+    pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let milestone_count = self.get_milestone(symbol);
         let vecs = &self.bit_vectors;
         let occurrence_vector = match symbol.index() {
@@ -162,7 +162,7 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].milestones[letter_idx as usize],
         };
     }
-    pub fn global_occurrence(&self, pointer_global_position: u64, symbol: &Symbol) -> u64 {
+    pub fn global_occurrence(&self, pointer_global_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let block_idx: u64 = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
         let local_query_position: u64 = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
 
