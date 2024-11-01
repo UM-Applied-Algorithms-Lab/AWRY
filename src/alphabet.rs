@@ -53,6 +53,17 @@ impl Symbol {
         }
     }
 
+    /// gets the ascii representation of the symbol with the given alphabet and encoding
+    #[inline]
+    pub fn ascii(&self) -> char {
+        if let SymbolEncoding::Ascii(encoding) = self.to_index().encoding {
+            return encoding;
+        } else {
+            panic!("unable to get index encoding, this should not be possible logically.");
+        }
+    }
+
+    /// gets the index representation of the symbol with the given alphabet and encoding
     #[inline]
     pub fn index(&self) -> u8 {
         if let SymbolEncoding::Index(encoding) = self.to_index().encoding {
@@ -62,6 +73,17 @@ impl Symbol {
         }
     }
 
+    /// gets the bit-vector representation of the symbol with the given alphabet and encoding
+    #[inline]
+    pub fn bit_vector(&self)->u8{
+        if let SymbolEncoding::BitVector(encoding) = self.to_bit_vector().encoding {
+            return encoding;
+        } else {
+            panic!("unable to get index encoding, this should not be possible logically.");
+        }
+    }
+
+    /// converts the symbol into an index-encoded symbol
     pub fn to_index(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
@@ -143,6 +165,7 @@ impl Symbol {
         }
     }
 
+    /// converts the symbol into an bit-vector-encoded symbol
     pub fn to_bit_vector(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
@@ -224,6 +247,7 @@ impl Symbol {
         }
     }
 
+    /// converts the symbol into an ascii-encoded symbol
     pub fn to_ascii(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
