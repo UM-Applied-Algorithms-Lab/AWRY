@@ -49,7 +49,7 @@ impl SimdVec256 {
         }
     }
 
-    pub fn as_one_hot(bit_index: usize) -> SimdVec256 {
+    pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
         let mut vals = AlignedVectorArray::new();
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
@@ -79,7 +79,7 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn masked_popcount(&self, local_query_position: usize) -> u32 {
+    pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 

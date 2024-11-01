@@ -4,7 +4,7 @@ pub const NUM_NUCLEOTIDE_MILESTONES: usize = 8; //4 nucs, plus N, and $, padded 
 pub const NUM_AMINO_MILESTONES: usize = 24; //20 AAs, plus X, and $, padded to 24
 pub const NUM_NUCLEOTIDE_BIT_VECTORS: usize = 3;
 pub const NUM_AMINO_BIT_VECTORS: usize = 5;
-pub const NUM_POSITIONS_PER_BLOCK: usize = 256;
+pub const NUM_POSITIONS_PER_BLOCK: u64 = 256;
 
 #[derive(Clone)]
 pub struct NucleotideBwtBlock {
@@ -39,7 +39,7 @@ impl NucleotideBwtBlock {
     }
 
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: usize, symbol: &Symbol) -> u64 {
+    pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
         let milestone_count = self.get_milestone(&symbol);
         let vectors = &self.bit_vectors;
         let occurrence_vector = match &symbol.index() {
@@ -79,7 +79,7 @@ impl AminoBwtBlock {
         return self.milestones[symbol.index() as usize];
     }
     #[inline]
-    pub fn global_occurrence(&self, local_query_position: usize, symbol: &Symbol) -> u64 {
+    pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
         let milestone_count = self.get_milestone(symbol);
         let vecs = &self.bit_vectors;
         let occurrence_vector = match symbol.index() {
@@ -124,9 +124,9 @@ impl Bwt {
     /// sets a single symbol at the given position in the bwt bit vectors.
     /// this function is meant to be run for every position in the bwt
     /// as a part of BWT data creation
-    pub fn set_symbol_at(&self, btw_position: usize, symbol: &Symbol) {
+    pub fn set_symbol_at(&self, btw_position: u64, symbol: &Symbol) {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx: usize = (btw_position / NUM_POSITIONS_PER_BLOCK) as usize;
+        let position_block_idx = btw_position / NUM_POSITIONS_PER_BLOCK;
         let position_in_block = btw_position % NUM_POSITIONS_PER_BLOCK;
 
         //create a bitmask, we'll use this to set the bit with an OR operation
@@ -138,10 +138,10 @@ impl Bwt {
             if encoded_symbol & 0x1 == 0 {
                 match self {
                     Bwt::Nucleotide(vec) => {
-                        vec[position_block_idx].bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx].or(&vector_bitmask);
                     }
                     Bwt::Amino(vec) => {
-                        vec[position_block_idx].bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                        vec[position_block_idx as usize].bit_vectors[bit_vector_idx].or(&vector_bitmask);
                     }
                 }
             }
@@ -162,13 +162,13 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].milestones[letter_idx as usize],
         };
     }
-    pub fn global_occurrence(&self, pointer_global_position: usize, symbol: &Symbol) -> u64 {
-        let block_idx: usize = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
-        let local_query_position: usize = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
+    pub fn global_occurrence(&self, pointer_global_position: u64, symbol: &Symbol) -> u64 {
+        let block_idx: u64 = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
+        let local_query_position: u64 = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
 
         match self {
-            Bwt::Nucleotide(vec) => vec[block_idx].global_occurrence(local_query_position, symbol),
-            Bwt::Amino(vec) => vec[block_idx].global_occurrence(local_query_position, symbol),
+            Bwt::Nucleotide(vec) => vec[block_idx as usize].global_occurrence(local_query_position, symbol),
+            Bwt::Amino(vec) => vec[block_idx as usize].global_occurrence(local_query_position, symbol),
         }
     }
 }
