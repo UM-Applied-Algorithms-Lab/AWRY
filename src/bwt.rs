@@ -1,4 +1,3 @@
-use std::arch::x86_64::_mm256_extract_epi64;
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
