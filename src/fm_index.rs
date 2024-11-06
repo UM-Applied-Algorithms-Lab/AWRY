@@ -1,7 +1,7 @@
 use crate::{
     alphabet::{alphabet_cardinality, Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, NucleotideBwtBlock},
-    search::{self, SearchPtr, SearchRange},
+    search::{SearchPtr, SearchRange},
 };
 use bwt;
 use bwt::Bwt;
@@ -9,39 +9,41 @@ use bwt::Bwt;
 pub struct FmIndex {
     bwt: Bwt,
     prefix_sums: Vec<u64>,
+    sampled_suffix_array: Vec<u64>,
+    suffix_array_compression_ratio: usize,
 }
+
+const SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
 impl FmIndex {
     pub fn new(
-        input_file_src: &String,
+        input_file_src: String,
         suffix_array_output_src: &String,
         bwt_alphabet: &SymbolAlphabet,
-        max_read_length: &Option<usize>,
-        num_threads: &Option<usize>,
+        max_query_len: Option<usize>,
+        threads: Option<usize>,
+        suffix_array_compression_ratio: usize,
+        alphabet: SymbolAlphabet,
     ) -> Result<Self, anyhow::Error> {
         let create_args = sufr::CreateArgs {
-            input: input_file_src.clone(),
-            num_partitions: 16, //the default in the sufr library
-            max_context: max_read_length.clone(),
-            threads: num_threads.clone(),
+            input: input_file_src,
+            num_partitions: 16, //this is the default, so okay I guess?
+            max_query_len,
+            threads,
             output: Some(suffix_array_output_src.clone()),
-            is_dna: match bwt_alphabet {
-                SymbolAlphabet::Nucleotide => true,
-                _ => false,
-            },
+            is_dna: alphabet == SymbolAlphabet::Nucleotide,
+            allow_ambiguity: true,
+            ignore_softmask: true,
         };
         sufr::create(&create_args);
 
-        let suffix_array: libsufr::SufrFile<u64> =
+        let mut sampled_suffix_array: Vec<u64> = Vec::new();
+        let suffix_array_file: libsufr::SufrFile<u64> =
             libsufr::SufrFile::read(&suffix_array_output_src)?;
-        let bwt_length = suffix_array.num_suffixes;
+        let bwt_length = suffix_array_file.num_suffixes;
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_length.div_ceil(bwt::NUM_POSITIONS_PER_BLOCK);
-        assert_eq!((100 as usize).div_ceil(3), 34);
-        assert_eq!((101 as usize).div_ceil(3), 34);
-        assert_eq!((102 as usize).div_ceil(3), 34);
-        assert_eq!((103 as usize).div_ceil(3), 35);
 
         let mut bwt = match bwt_alphabet {
             SymbolAlphabet::Nucleotide => {
@@ -55,30 +57,30 @@ impl FmIndex {
         let alphabet_cardinality = alphabet_cardinality(&bwt_alphabet);
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
 
-        for (suffix_idx, position_in_suffix_array) in suffix_array.suffix_array.clone().enumerate()
-        {
+        let mut suffix_array = suffix_array_file.suffix_array;
+        for (suffix_idx, suffix_array_value) in suffix_array.iter().enumerate() {
+            //generate the sampled suffix array
+            if suffix_idx % suffix_array_compression_ratio == 0 {
+                sampled_suffix_array.push(suffix_array_value);
+            }
             //set the block milestones, if necessary
-            if position_in_suffix_array % bwt::NUM_POSITIONS_PER_BLOCK == 0 {
+            if suffix_array_value % bwt::NUM_POSITIONS_PER_BLOCK == 0 {
                 bwt.set_milestones(
-                    (position_in_suffix_array / bwt::NUM_POSITIONS_PER_BLOCK) as usize,
+                    (suffix_array_value / bwt::NUM_POSITIONS_PER_BLOCK) as usize,
                     &letter_counts,
                 );
             }
-
+            suffix_array_file.text[0];
             // get the letter immediately before the suffix array
-            let preceeding_letter = match suffix_idx {
+            let preceeding_letter_ascii = match suffix_idx {
                 0 => '$',
-                _ => suffix_array
-                    .string_at((suffix_idx - 1) as usize, Some(1))
-                    .chars()
-                    .next()
-                    .unwrap(),
+                _ => suffix_array_file.text[(suffix_array_value - 1) as usize] as char,
             };
 
-            let preceeding_letter_idx = ascii_to_index(&preceeding_letter, &bwt_alphabet);
-            let encoded_letter = ascii_to_encoded(&preceeding_letter, &bwt_alphabet);
-            bwt.set_symbol_at(position_in_suffix_array, encoded_letter);
-            letter_counts[preceeding_letter_idx as usize] += 1;
+            let preceding_symbol = Symbol::new_ascii(bwt_alphabet.clone(), preceeding_letter_ascii);
+            let preceding_letter_idx = preceding_symbol.index();
+            bwt.set_symbol_at(&(suffix_idx as u64), &preceding_symbol);
+            letter_counts[preceding_letter_idx as usize] += 1;
         }
 
         //generate the prefix sums for the letter counts
@@ -91,7 +93,12 @@ impl FmIndex {
             }
         }
 
-        return Ok(FmIndex { bwt, prefix_sums });
+        return Ok(FmIndex {
+            bwt,
+            prefix_sums,
+            sampled_suffix_array,
+            suffix_array_compression_ratio,
+        });
     }
 
     pub fn len(&self) -> usize {
@@ -138,7 +145,7 @@ impl FmIndex {
         }
     }
 
-    pub fn backstep(&self, search_pointer: SearchPtr)->SearchPtr{
+    pub fn backstep(&self, search_pointer: SearchPtr) -> SearchPtr {
         let symbol = self.bwt.get_symbol_at(&search_pointer);
         let symbol_prefix_sum = self.prefix_sums[symbol.index() as usize];
         let global_occurrence = self.bwt.global_occurrence(search_pointer, &symbol);
