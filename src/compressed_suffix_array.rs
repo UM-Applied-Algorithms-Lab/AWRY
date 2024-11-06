@@ -1,5 +1,5 @@
 
-struct CompressedSuffixArray {
+pub struct CompressedSuffixArray {
     data: Vec<u64>,
     length: usize,
     suffix_array_compression_ratio: usize,
