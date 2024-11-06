@@ -8,25 +8,18 @@ authors = [
     "Tim Anderson <tim.anderson@umontana.edu"
 ]
 
-
 [dependencies]
 anyhow = "1.0.92"
 clap = { version = "4.5.13", features = ["derive"] }
 libsufr = "0.3.0"
-# libsufr = "0.2.2"
 num = "0.4.3"
 sufr = "0.3.1"
 wide = "0.7.28"
 
-
-
-# Example of customizing the library in Cargo.toml.
 [lib]
 crate-type = ["lib"]
 path = "src/lib.rs"
 
-
-# [profile.release]
 rustflags = ["-C", "target-cpu=native"]
 
 
