@@ -43,7 +43,7 @@ impl CompressedSuffixArray {
 
     pub fn get_value(&self, position: usize) -> Option<u64> {
         if position % self.suffix_array_compression_ratio == 0 {
-            Some(self.reconstruct_value(position))
+            Some(self.reconstruct_value(position / self.suffix_array_compression_ratio))
         } else {
             None
         }
