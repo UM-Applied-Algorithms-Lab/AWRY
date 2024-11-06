@@ -4,7 +4,7 @@ pub enum SymbolEncoding {
     BitVector(u8),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,
