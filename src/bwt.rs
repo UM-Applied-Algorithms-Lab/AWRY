@@ -1,4 +1,3 @@
-
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     search::SearchPtr,
@@ -42,6 +41,12 @@ impl NucleotideBwtBlock {
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
+    pub fn milestones(&self) -> [u64; NUM_NUCLEOTIDE_MILESTONES] {
+        self.milestones
+    }
+    pub fn bit_vectors(&self) -> [SimdVec256; NUM_NUCLEOTIDE_BIT_VECTORS] {
+        self.bit_vectors
+    }
 
     #[inline]
     pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
@@ -82,6 +87,14 @@ impl AminoBwtBlock {
     #[inline]
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
+    }
+
+    pub fn milestones(&self) -> [u64; NUM_AMINO_MILESTONES] {
+        self.milestones
+    }
+
+    pub fn bit_vectors(&self) -> [SimdVec256; NUM_AMINO_BIT_VECTORS] {
+        self.bit_vectors
     }
     #[inline]
     pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
