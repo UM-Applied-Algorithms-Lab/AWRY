@@ -1,13 +1,12 @@
-
 pub struct CompressedSuffixArray {
     data: Vec<u64>,
     length: usize,
-    suffix_array_compression_ratio: usize,
+    suffix_array_compression_ratio: u64,
     bits_per_element: u64,
 }
 
 impl CompressedSuffixArray {
-    pub fn new(length: usize, suffix_array_compression_ratio: usize) -> Self {
+    pub fn new(length: usize, suffix_array_compression_ratio: u64) -> Self {
         //finds how many bits would be required to store any integer in the range 0 to length-1
         let mut num_bits_required: u64 = 0;
         let mut maximum_sa_value = length - 1;
@@ -24,6 +23,8 @@ impl CompressedSuffixArray {
         }
     }
 
+    ///sets the value in the compressed suffix array.
+    /// NOTE! the position is the compressed position, not the position in the full SA.
     pub fn set_value(&mut self, value: u64, position: usize) {
         let word_position = position / 64;
         let bit_position = position % 64;
@@ -42,8 +43,8 @@ impl CompressedSuffixArray {
     }
 
     pub fn get_value(&self, position: usize) -> Option<u64> {
-        if position % self.suffix_array_compression_ratio == 0 {
-            Some(self.reconstruct_value(position / self.suffix_array_compression_ratio))
+        if position % self.suffix_array_compression_ratio as usize == 0 {
+            Some(self.reconstruct_value(position / self.suffix_array_compression_ratio as usize))
         } else {
             None
         }

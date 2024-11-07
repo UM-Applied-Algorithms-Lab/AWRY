@@ -9,8 +9,7 @@ use bwt::Bwt;
 pub struct FmIndex {
     bwt: Bwt,
     prefix_sums: Vec<u64>,
-    sampled_suffix_array: Vec<u64>,
-    suffix_array_compression_ratio: usize,
+    suffix_array_compression_ratio: u64,
 }
 
 const SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
@@ -22,7 +21,7 @@ impl FmIndex {
         bwt_alphabet: &SymbolAlphabet,
         max_query_len: Option<usize>,
         threads: Option<usize>,
-        suffix_array_compression_ratio: usize,
+        suffix_array_compression_ratio: u64,
         alphabet: SymbolAlphabet,
     ) -> Result<Self, anyhow::Error> {
         let create_args = sufr::CreateArgs {
@@ -39,8 +38,8 @@ impl FmIndex {
 
         let mut sampled_suffix_array: Vec<u64> = Vec::new();
         let suffix_array_file: libsufr::SufrFile<u64> =
-            libsufr::SufrFile::read(&suffix_array_output_src)?;
-        let bwt_length = suffix_array_file.num_suffixes;
+        let mut compressed_suffix_array =
+            CompressedSuffixArray::new(suffix_array_len as usize, suffix_array_compression_ratio);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_length.div_ceil(bwt::NUM_POSITIONS_PER_BLOCK);
@@ -60,8 +59,10 @@ impl FmIndex {
         let mut suffix_array = suffix_array_file.suffix_array;
         for (suffix_idx, suffix_array_value) in suffix_array.iter().enumerate() {
             //generate the sampled suffix array
-            if suffix_idx % suffix_array_compression_ratio == 0 {
-                sampled_suffix_array.push(suffix_array_value);
+            if suffix_idx % suffix_array_compression_ratio as usize == 0 {
+                compressed_suffix_array.set_value(
+                    suffix_array_value,
+                    suffix_idx / suffix_array_compression_ratio as usize,
             }
             //set the block milestones, if necessary
             if suffix_array_value % bwt::NUM_POSITIONS_PER_BLOCK == 0 {
