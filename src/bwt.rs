@@ -139,6 +139,12 @@ pub enum Bwt {
 }
 
 impl Bwt {
+    pub fn num_bwt_blocks(&self) -> usize {
+        match self {
+            Bwt::Nucleotide(vec) => vec.len(),
+            Bwt::Amino(vec) => vec.len(),
+        }
+    }
     /// sets a single symbol at the given position in the bwt bit vectors.
     /// this function is meant to be run for every position in the bwt
     /// as a part of BWT data creation
