@@ -23,6 +23,14 @@ impl CompressedSuffixArray {
         }
     }
 
+    pub fn data(&self) -> &Vec<u64> {
+        &self.data
+    }
+
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
     ///sets the value in the compressed suffix array.
     /// NOTE! the position is the compressed position, not the position in the full SA.
     pub fn set_value(&mut self, value: u64, position: usize) {

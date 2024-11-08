@@ -121,6 +121,24 @@ impl FmIndex {
         });
     }
 
+    pub fn from_elements(
+        bwt: Bwt,
+        prefix_sums: Vec<u64>,
+        sampled_suffix_array: CompressedSuffixArray,
+        suffix_array_compression_ratio: u64,
+        bwt_len: u64,
+        version_number: u64,
+    ) -> FmIndex {
+        FmIndex {
+            bwt,
+            prefix_sums,
+            sampled_suffix_array,
+            suffix_array_compression_ratio,
+            bwt_len,
+            version_number,
+        }
+    }
+
     pub fn suffix_array_compression_ratio(&self) -> u64 {
         self.suffix_array_compression_ratio
     }
@@ -132,14 +150,14 @@ impl FmIndex {
     pub fn version_number(&self) -> u64 {
         self.version_number
     }
-    pub fn bwt(&self)->&Bwt{
+    pub fn bwt(&self) -> &Bwt {
         &self.bwt
     }
-    pub fn prefix_sums(&self)-> &Vec<u64>{
+    pub fn prefix_sums(&self) -> &Vec<u64> {
         &self.prefix_sums
     }
 
-    pub fn sampled_suffix_array(&self)->&CompressedSuffixArray{
+    pub fn sampled_suffix_array(&self) -> &CompressedSuffixArray {
         &self.sampled_suffix_array
     }
 
