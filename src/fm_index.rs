@@ -1,48 +1,64 @@
+use std::{
+    io::{Error, Write},
+    path::Path,
+};
+
 use crate::{
     alphabet::{alphabet_cardinality, Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, NucleotideBwtBlock},
+    compressed_suffix_array::CompressedSuffixArray,
     search::{SearchPtr, SearchRange},
 };
 use bwt;
 use bwt::Bwt;
 
+pub const FM_VERSION_NUMBER: u64 = 1;
+
 pub struct FmIndex {
     bwt: Bwt,
     prefix_sums: Vec<u64>,
+    sampled_suffix_array: CompressedSuffixArray,
     suffix_array_compression_ratio: u64,
+    bwt_len: u64,
+    version_number: u64,
 }
 
-const SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
+const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
 impl FmIndex {
     pub fn new(
         input_file_src: String,
-        suffix_array_output_src: &String,
+        suffix_array_output_src: &Option<String>,
         bwt_alphabet: &SymbolAlphabet,
         max_query_len: Option<usize>,
         threads: Option<usize>,
         suffix_array_compression_ratio: u64,
         alphabet: SymbolAlphabet,
     ) -> Result<Self, anyhow::Error> {
+        let suffix_array_src = match suffix_array_output_src {
+            Some(_) => suffix_array_output_src.clone(),
+            None => Some(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned()),
+        };
         let create_args = sufr::CreateArgs {
             input: input_file_src,
             num_partitions: 16, //this is the default, so okay I guess?
             max_query_len,
             threads,
-            output: Some(suffix_array_output_src.clone()),
+            output: suffix_array_src.clone(),
             is_dna: alphabet == SymbolAlphabet::Nucleotide,
             allow_ambiguity: true,
             ignore_softmask: true,
         };
         sufr::create(&create_args);
 
-        let mut sampled_suffix_array: Vec<u64> = Vec::new();
         let suffix_array_file: libsufr::SufrFile<u64> =
+            libsufr::SufrFile::read(&suffix_array_src.unwrap())?;
+        let bwt_len = suffix_array_file.num_suffixes;
         let mut compressed_suffix_array =
-            CompressedSuffixArray::new(suffix_array_len as usize, suffix_array_compression_ratio);
+            CompressedSuffixArray::new(bwt_len as usize, suffix_array_compression_ratio);
 
         //find the number of blocks needed (integer ceiling funciton)
-        let num_bwt_blocks = bwt_length.div_ceil(bwt::NUM_POSITIONS_PER_BLOCK);
+        let num_bwt_blocks = bwt_len.div_ceil(bwt::NUM_POSITIONS_PER_BLOCK);
 
         let mut bwt = match bwt_alphabet {
             SymbolAlphabet::Nucleotide => {
@@ -63,6 +79,7 @@ impl FmIndex {
                 compressed_suffix_array.set_value(
                     suffix_array_value,
                     suffix_idx / suffix_array_compression_ratio as usize,
+                );
             }
             //set the block milestones, if necessary
             if suffix_array_value % bwt::NUM_POSITIONS_PER_BLOCK == 0 {
@@ -97,9 +114,33 @@ impl FmIndex {
         return Ok(FmIndex {
             bwt,
             prefix_sums,
-            sampled_suffix_array,
+            sampled_suffix_array: compressed_suffix_array,
             suffix_array_compression_ratio,
+            bwt_len,
+            version_number: FM_VERSION_NUMBER,
         });
+    }
+
+    pub fn suffix_array_compression_ratio(&self) -> u64 {
+        self.suffix_array_compression_ratio
+    }
+
+    pub fn bwt_len(&self) -> u64 {
+        self.bwt_len
+    }
+
+    pub fn version_number(&self) -> u64 {
+        self.version_number
+    }
+    pub fn bwt(&self)->&Bwt{
+        &self.bwt
+    }
+    pub fn prefix_sums(&self)-> &Vec<u64>{
+        &self.prefix_sums
+    }
+
+    pub fn sampled_suffix_array(&self)->&CompressedSuffixArray{
+        &self.sampled_suffix_array
     }
 
     pub fn len(&self) -> usize {
