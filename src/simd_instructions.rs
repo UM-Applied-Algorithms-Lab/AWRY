@@ -1,12 +1,13 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __m256i, _mm256_and_si256, _mm256_andnot_si256, _mm256_extract_epi64, _mm256_load_si256,
-    _mm256_or_si256, _mm256_setzero_si256,
+    _mm256_or_si256, _mm256_setzero_si256, _mm256_storeu_si256,
 };
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint8x16x2_t, vandq_u64, vdupq_n_u64, vdupq_n_u8, vgetq_lane, vld1q_u8_x2, vmvnq_u64, vorrq_u64,
+    uint8x16x2_t, vandq_u64, vdupq_n_u64, vdupq_n_u8, vgetq_lane, vld1q_u8_x2, vmvnq_u64,
+    vorrq_u64, vst1q_u8_x2,
 };
 
 #[repr(align(32))]
@@ -111,6 +112,15 @@ impl SimdVec256 {
                 & 1 //only keep the bit we care about
         }
     }
+
+    pub fn to_u64s(&self) -> [u64; 4] {
+        let mut array = AlignedVectorArray::new();
+        unsafe {
+            _mm256_storeu_si256(array.data.as_mut_ptr() as *mut __m256i, self.data);
+        }
+
+        array.data
+    }
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -191,5 +201,14 @@ impl SimdVec256 {
                 (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 1) & bitmasks[3]).count_ones();
         }
         return popcount;
+    }
+
+    pub fn to_u64s(&self) -> [u64; 4] {
+        let mut array = AlignedVectorArray::new();
+        unsafe {
+            vst1q_u8_x2(array.data.as_mut_ptr() as *mut __m256i, self.data);
+        }
+
+        array.data
     }
 }
