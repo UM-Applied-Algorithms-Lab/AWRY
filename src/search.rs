@@ -28,4 +28,8 @@ impl SearchRange {
             self.end_ptr - self.start_ptr + 1
         }
     }
+    
+    pub fn range_iter(&self)->core::ops::Range<SearchPtr>{
+        self.start_ptr..(self.end_ptr+1)
+    }
 }
