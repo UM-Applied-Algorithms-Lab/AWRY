@@ -141,7 +141,7 @@ impl FmIndex {
                 };
 
                 let compressed_suffix_array_len = (bwt_len / suffix_array_compression_ratio) as usize;
-                let num_bwt_blocks = (bwt_len as usize).div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
+                let num_bwt_blocks = (bwt_len as usize).div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK as usize);
 
                 
                 let bwt:Bwt = match alphabet{

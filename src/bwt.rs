@@ -19,7 +19,7 @@ pub struct AminoBwtBlock {
 impl NucleotideBwtBlock {
     pub const NUM_MILESTONES: usize = 8;
     pub const NUM_BIT_VECTORS: usize = 3;
-    pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
+    pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
     pub fn new() -> Self {
         NucleotideBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
@@ -158,7 +158,7 @@ pub enum Bwt {
 }
 
 impl Bwt {
-    pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
+    pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
     pub fn num_bwt_blocks(&self) -> usize {
         match self {
             Bwt::Nucleotide(vec) => vec.len(),
@@ -170,8 +170,8 @@ impl Bwt {
     /// as a part of BWT data creation
     pub fn set_symbol_at(&self, bwt_position: &SearchPtr, symbol: &Symbol) {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
-        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
+        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK;
 
         //create a bitmask, we'll use this to set the bit with an OR operation
         let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
@@ -198,8 +198,8 @@ impl Bwt {
 
     pub fn get_symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
-        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
+        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK;
 
         let mut bit_vector_encoding: u64 = 0;
         match &self {
@@ -246,9 +246,9 @@ impl Bwt {
         pointer_global_position: SearchPtr,
         symbol: &Symbol,
     ) -> SearchPtr {
-        let block_idx: u64 = pointer_global_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let block_idx: u64 = pointer_global_position / Self::NUM_SYMBOLS_PER_BLOCK;
         let local_query_position: u64 =
-            pointer_global_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
+            pointer_global_position % Self::NUM_SYMBOLS_PER_BLOCK;
 
         match self {
             Bwt::Nucleotide(vec) => {
