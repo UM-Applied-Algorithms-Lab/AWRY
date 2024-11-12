@@ -68,4 +68,8 @@ impl CompressedSuffixArray {
         return self.data[word_position] >> bit_position
             | (self.data[word_position + 1] >> (64 - bit_position));
     }
+
+    pub fn position_is_sampled(&self, unsampled_position: u64) -> bool {
+        return unsampled_position % self.suffix_array_compression_ratio == 0;
+    }
 }
