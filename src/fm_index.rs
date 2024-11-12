@@ -1,15 +1,9 @@
-use std::{
-    io::{Error, Write},
-    path::Path,
-};
-
 use crate::{
     alphabet::{alphabet_cardinality, Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
     search::{SearchPtr, SearchRange},
 };
-use bwt;
 use bwt::Bwt;
 
 pub const FM_VERSION_NUMBER: u64 = 1;
