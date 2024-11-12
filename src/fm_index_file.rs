@@ -1,8 +1,12 @@
-use crate::bwt;
+use crate::alphabet::alphabet_cardinality;
+use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
+use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
+use crate::simd_instructions::SimdVec256;
 use crate::{alphabet::SymbolAlphabet, bwt::Bwt};
-use std::str;
+use std::convert::TryInto;
 use std::io::{self, Read};
+use std::slice;
 use std::{
     io::{Error, Write},
     path::Path,
@@ -136,10 +140,73 @@ impl FmIndex {
                     _=>{SymbolAlphabet::Amino}
                 };
 
-                let compressed_suffix_array_len = bwt_len / suffix_array_compression_ratio;
-                let num_bwt_blocks = bwt_len.div_ceil(bwt::NUM_POSITIONS_PER_BLOCK);
+                let compressed_suffix_array_len = (bwt_len / suffix_array_compression_ratio) as usize;
+                let num_bwt_blocks = (bwt_len as usize).div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
 
-                todo!("read in the bwt, prefix sums, and sampled SA");
+                
+                let bwt:Bwt = match alphabet{
+                    SymbolAlphabet::Nucleotide => {
+                        let mut bwt_block_list = vec![NucleotideBwtBlock::new();num_bwt_blocks];
+                        for block_idx in 0..bwt_block_list.len(){
+                            //read the milestones for this block
+                            let mut milestones:[u64;NucleotideBwtBlock::NUM_MILESTONES] = [0; NucleotideBwtBlock::NUM_MILESTONES];
+                            for milestone_idx in 0..milestones.len(){
+                                fm_index_file.read_exact(&mut u64_buffer)?;
+                                milestones[milestone_idx] = u64::from_le_bytes(u64_buffer);
+                            }
+
+                            //read the bit vectors for this block
+                            let mut bit_vector_buffer:[u8;32*NucleotideBwtBlock::NUM_BIT_VECTORS] = [0;32*NucleotideBwtBlock::NUM_BIT_VECTORS];
+                            fm_index_file.read_exact(&mut bit_vector_buffer);
+                            let buffer_ptr = bit_vector_buffer.as_ptr();
+                            let vector_ptr = buffer_ptr as *const SimdVec256;
+                            let bit_vector_slice = unsafe{
+                                 slice::from_raw_parts(vector_ptr, NucleotideBwtBlock::NUM_BIT_VECTORS)
+                            };
+                            bwt_block_list[block_idx] = NucleotideBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
+                        }
+
+                        Bwt::Nucleotide(bwt_block_list)
+
+                    },
+                    SymbolAlphabet::Amino =>{
+                        let mut bwt_block_list = vec![AminoBwtBlock::new();num_bwt_blocks];
+                        for block_idx in 0..bwt_block_list.len(){
+                            //read the milestones for this block
+                            let mut milestones:[u64;AminoBwtBlock::NUM_MILESTONES] = [0; AminoBwtBlock::NUM_MILESTONES];
+                            for milestone_idx in 0..milestones.len(){
+                                fm_index_file.read_exact(&mut u64_buffer);
+                                milestones[milestone_idx] = u64::from_le_bytes(u64_buffer);
+                            }
+
+                            //read the bit vectors for this block
+                            let mut bit_vector_buffer:[u8;32*AminoBwtBlock::NUM_BIT_VECTORS] = [0;32*AminoBwtBlock::NUM_BIT_VECTORS];
+                            fm_index_file.read_exact(&mut bit_vector_buffer);
+                            let buffer_ptr = bit_vector_buffer.as_ptr();
+                            let vector_ptr = buffer_ptr as *const SimdVec256;
+                            let bit_vector_slice = unsafe{
+                                slice::from_raw_parts(vector_ptr, AminoBwtBlock::NUM_BIT_VECTORS)
+                            };
+                            bwt_block_list[block_idx] = AminoBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
+                        }
+                        Bwt::Amino(bwt_block_list)
+                    },
+                };
+
+                //write the prefix sums
+                let mut prefix_sums:Vec<u64> = vec![0; alphabet_cardinality(&alphabet) as usize+1];
+                for prefix_sum_idx in 0..prefix_sums.len() {
+                    fm_index_file.read_exact(&mut u64_buffer);
+                    prefix_sums[prefix_sum_idx] = u64::from_le_bytes(u64_buffer);
+                }
+
+                let mut sampled_suffix_array = CompressedSuffixArray::new(compressed_suffix_array_len, suffix_array_compression_ratio);
+                        //write the sampled suffix array
+                for suffix_array_idx in 0..compressed_suffix_array_len{
+                    fm_index_file.read_exact(&mut u64_buffer);
+                    sampled_suffix_array.set_value(u64::from_le_bytes(u64_buffer), suffix_array_idx);
+                }
+
 
                 return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, suffix_array_compression_ratio, bwt_len, version_number));
             }
