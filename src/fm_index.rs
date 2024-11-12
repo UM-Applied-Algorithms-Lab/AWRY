@@ -133,6 +133,9 @@ impl FmIndex {
             }
         }
 
+        //remove the temp uncompressed suffix array file, since we no longer need it.
+        std::fs::remove_file(Path::new(&suffix_array_src));
+
         return Ok(FmIndex {
             bwt,
             prefix_sums,
