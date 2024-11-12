@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     alphabet::{alphabet_cardinality, Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, NucleotideBwtBlock},
@@ -52,16 +54,16 @@ impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
-        let suffix_array_src = match args.suffix_array_output_src {
-            Some(_) => args.suffix_array_output_src.clone(),
-            None => Some(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned()),
+        let suffix_array_src = match args.suffix_array_output_src.clone() {
+            Some(src) => src,
+            None => DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned(),
         };
         let sufr_create_args = sufr::CreateArgs {
             input: args.input_file_src.to_owned(),
             num_partitions: 16, //this is the default, so okay I guess?
             max_query_len: args.max_query_len,
             threads: args.threads,
-            output: suffix_array_src.clone(),
+            output: Some(suffix_array_src.clone()),
             is_dna: args.alphabet == SymbolAlphabet::Nucleotide,
             allow_ambiguity: true,
             ignore_softmask: true,
@@ -69,7 +71,7 @@ impl FmIndex {
         sufr::create(&sufr_create_args);
 
         let suffix_array_file: libsufr::SufrFile<u64> =
-            libsufr::SufrFile::read(&suffix_array_src.unwrap())?;
+            libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = suffix_array_file.num_suffixes;
         let sa_compression_ratio = match args.suffix_array_compression_ratio {
             Some(ratio) => ratio,
