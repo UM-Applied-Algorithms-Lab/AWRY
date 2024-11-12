@@ -235,12 +235,7 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].set_milestones(counts),
         }
     }
-    fn get_milestone(&self, block_idx: usize, letter_idx: u8) -> u64 {
-        return match self {
-            Bwt::Nucleotide(vec) => vec[block_idx].milestones[letter_idx as usize],
-            Bwt::Amino(vec) => vec[block_idx].milestones[letter_idx as usize],
-        };
-    }
+    
     pub fn global_occurrence(
         &self,
         pointer_global_position: SearchPtr,
