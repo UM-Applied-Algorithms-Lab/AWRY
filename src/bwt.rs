@@ -4,35 +4,32 @@ use crate::{
     simd_instructions::SimdVec256,
 };
 
-pub const NUM_NUCLEOTIDE_MILESTONES: usize = 8; //4 nucs, plus N, and $, padded to 8
-pub const NUM_AMINO_MILESTONES: usize = 24; //20 AAs, plus X, and $, padded to 24
-pub const NUM_NUCLEOTIDE_BIT_VECTORS: usize = 3;
-pub const NUM_AMINO_BIT_VECTORS: usize = 5;
-pub const NUM_POSITIONS_PER_BLOCK: u64 = 256;
-
 #[derive(Clone)]
 pub struct NucleotideBwtBlock {
-    milestones: [u64; NUM_NUCLEOTIDE_MILESTONES],
-    bit_vectors: [SimdVec256; NUM_NUCLEOTIDE_BIT_VECTORS],
+    milestones: [u64; Self::NUM_MILESTONES],
+    bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
 }
 
 #[derive(Clone)]
 pub struct AminoBwtBlock {
-    milestones: [u64; NUM_AMINO_MILESTONES],
-    bit_vectors: [SimdVec256; NUM_AMINO_BIT_VECTORS],
+    milestones: [u64; Self::NUM_MILESTONES],
+    bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
 }
 
 impl NucleotideBwtBlock {
+    pub const NUM_MILESTONES: usize = 8;
+    pub const NUM_BIT_VECTORS: usize = 3;
+    pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
     pub fn new() -> Self {
         NucleotideBwtBlock {
-            milestones: [0; NUM_NUCLEOTIDE_MILESTONES],
-            bit_vectors: [SimdVec256::zero(); NUM_NUCLEOTIDE_BIT_VECTORS],
+            milestones: [0; Self::NUM_MILESTONES],
+            bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
         }
     }
 
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
-        for milestone_idx in 0..NUM_NUCLEOTIDE_MILESTONES {
+        for milestone_idx in 0..Self::NUM_MILESTONES {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
@@ -41,10 +38,10 @@ impl NucleotideBwtBlock {
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
-    pub fn milestones(&self) -> [u64; NUM_NUCLEOTIDE_MILESTONES] {
+    pub fn milestones(&self) -> [u64; Self::NUM_MILESTONES] {
         self.milestones
     }
-    pub fn bit_vectors(&self) -> [SimdVec256; NUM_NUCLEOTIDE_BIT_VECTORS] {
+    pub fn bit_vectors(&self) -> [SimdVec256; Self::NUM_BIT_VECTORS] {
         self.bit_vectors
     }
 
@@ -72,15 +69,18 @@ impl NucleotideBwtBlock {
 }
 
 impl AminoBwtBlock {
+    pub const NUM_MILESTONES: usize = 24;
+    pub const NUM_BIT_VECTORS: usize = 5;
+    pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
     pub fn new() -> Self {
         AminoBwtBlock {
-            milestones: [0; NUM_AMINO_MILESTONES],
-            bit_vectors: [SimdVec256::zero(); NUM_AMINO_BIT_VECTORS],
+            milestones: [0; Self::NUM_MILESTONES],
+            bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
         }
     }
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
-        for milestone_idx in 0..NUM_AMINO_MILESTONES {
+        for milestone_idx in 0..Self::NUM_MILESTONES {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
@@ -89,11 +89,11 @@ impl AminoBwtBlock {
         return self.milestones[symbol.index() as usize];
     }
 
-    pub fn milestones(&self) -> [u64; NUM_AMINO_MILESTONES] {
+    pub fn milestones(&self) -> [u64; Self::NUM_MILESTONES] {
         self.milestones
     }
 
-    pub fn bit_vectors(&self) -> [SimdVec256; NUM_AMINO_BIT_VECTORS] {
+    pub fn bit_vectors(&self) -> [SimdVec256; Self::NUM_BIT_VECTORS] {
         self.bit_vectors
     }
     #[inline]
@@ -139,6 +139,7 @@ pub enum Bwt {
 }
 
 impl Bwt {
+    pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
     pub fn num_bwt_blocks(&self) -> usize {
         match self {
             Bwt::Nucleotide(vec) => vec.len(),
@@ -150,8 +151,8 @@ impl Bwt {
     /// as a part of BWT data creation
     pub fn set_symbol_at(&self, bwt_position: &SearchPtr, symbol: &Symbol) {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx = bwt_position / NUM_POSITIONS_PER_BLOCK;
-        let position_in_block = bwt_position % NUM_POSITIONS_PER_BLOCK;
+        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
 
         //create a bitmask, we'll use this to set the bit with an OR operation
         let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
@@ -178,8 +179,8 @@ impl Bwt {
 
     pub fn get_symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
         //find the block, byte, and bit of the data we're setting
-        let position_block_idx = bwt_position / NUM_POSITIONS_PER_BLOCK;
-        let position_in_block = bwt_position % NUM_POSITIONS_PER_BLOCK;
+        let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
 
         let mut bit_vector_encoding: u64 = 0;
         match &self {
@@ -226,8 +227,9 @@ impl Bwt {
         pointer_global_position: SearchPtr,
         symbol: &Symbol,
     ) -> SearchPtr {
-        let block_idx: u64 = pointer_global_position / NUM_POSITIONS_PER_BLOCK;
-        let local_query_position: u64 = pointer_global_position % NUM_POSITIONS_PER_BLOCK;
+        let block_idx: u64 = pointer_global_position / Self::NUM_SYMBOLS_PER_BLOCK as u64;
+        let local_query_position: u64 =
+            pointer_global_position % Self::NUM_SYMBOLS_PER_BLOCK as u64;
 
         match self {
             Bwt::Nucleotide(vec) => {
