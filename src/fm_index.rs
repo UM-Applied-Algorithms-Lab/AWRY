@@ -76,7 +76,7 @@ impl FmIndex {
                 );
             }
             //set the block milestones, if necessary
-            if suffix_array_value % Bwt::NUM_SYMBOLS_PER_BLOCK== 0 {
+            if suffix_array_value % Bwt::NUM_SYMBOLS_PER_BLOCK == 0 {
                 bwt.set_milestones(
                     (suffix_array_value / Bwt::NUM_SYMBOLS_PER_BLOCK) as usize,
                     &letter_counts,
@@ -159,17 +159,47 @@ impl FmIndex {
         return self.prefix_sums[self.prefix_sums.len() - 1] as usize;
     }
 
-    pub fn count_string(&self, query: &String) -> usize {
+    fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         let mut search_range = SearchRange::new(self);
-
         for query_char in query.chars().rev() {
             search_range = self.update_range_with_char(search_range, &query_char);
-            if search_range.is_empty() {
-                return 0;
-            }
         }
 
-        return 0;
+        search_range
+    }
+
+    pub fn count_string(&self, query: &String) -> u64 {
+        let search_range = self.get_search_range_for_string(query);
+        if search_range.start_ptr > search_range.end_ptr {
+            0
+        } else {
+            (search_range.end_ptr - search_range.start_ptr) + 1
+        }
+    }
+
+    pub fn locate_string(&self, query: &String) -> Vec<u64> {
+        let mut string_locations: Vec<u64> = Vec::new();
+        let search_range = self.get_search_range_for_string(query);
+
+        for search_range_idx in search_range.range_iter() {
+            let mut num_backsteps_taken: u64 = 0;
+            let mut backstep_position = search_range_idx;
+            while !self
+                .sampled_suffix_array
+                .position_is_sampled(backstep_position)
+            {
+                backstep_position = self.backstep(backstep_position);
+                num_backsteps_taken += 1;
+            }
+            let suffix_array_position = backstep_position + num_backsteps_taken;
+            let sequence_position = match self.sampled_suffix_array.get_value(suffix_array_position as usize){
+                Some(position) => position,
+                None => panic!("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data."),
+            };
+            string_locations.push(sequence_position);
+        }
+
+        string_locations
     }
 
     pub fn update_range_with_char(
