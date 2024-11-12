@@ -65,8 +65,11 @@ impl CompressedSuffixArray {
         let word_position = position / 64;
         let bit_position = position % 64;
 
-        return self.data[word_position] >> bit_position
+        let unmasked_value =  self.data[word_position] >> bit_position
             | (self.data[word_position + 1] >> (64 - bit_position));
+        let bitmask = (1<<self.bits_per_element)-1;
+
+            return unmasked_value & bitmask;
     }
 
     pub fn position_is_sampled(&self, unsampled_position: u64) -> bool {
