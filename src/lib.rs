@@ -1,10 +1,10 @@
 pub mod alphabet;
 pub mod bwt;
+pub mod compressed_suffix_array;
 pub mod fm_index;
-pub mod occurrence;
+pub mod fm_index_file;
 pub mod search;
 pub mod simd_instructions;
-pub mod compressed_suffix_array;
 //todo: how am I going to square the Suffix Array and the read collection?
 //how to get the suffix array data out (use the sufr library its self)
 //todo: count function, returns range, method on range to get len
@@ -25,7 +25,7 @@ mod tests {
     }
 
     #[test]
-    fn ascii_value_to_char(){
+    fn ascii_value_to_char() {
         assert_eq!(64 as char, 'A');
     }
 }
