@@ -27,6 +27,16 @@ impl NucleotideBwtBlock {
         }
     }
 
+    pub fn from_data(
+        milestones: [u64; Self::NUM_MILESTONES],
+        bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
+    ) -> Self {
+        NucleotideBwtBlock {
+            milestones,
+            bit_vectors,
+        }
+    }
+
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         for milestone_idx in 0..Self::NUM_MILESTONES {
@@ -76,6 +86,15 @@ impl AminoBwtBlock {
         AminoBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
             bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
+        }
+    }
+    pub fn from_data(
+        milestones: [u64; Self::NUM_MILESTONES],
+        bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
+    ) -> Self {
+        AminoBwtBlock {
+            milestones,
+            bit_vectors,
         }
     }
     #[inline]
