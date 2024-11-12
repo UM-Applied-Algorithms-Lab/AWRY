@@ -19,42 +19,69 @@ pub struct FmIndex {
 
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
-impl FmIndex {
+pub struct FmBuildArgs {
+    input_file_src: String,
+    suffix_array_output_src: Option<String>,
+    suffix_array_compression_ratio: Option<u8>,
+    alphabet: SymbolAlphabet,
+    max_query_len: Option<usize>,
+    threads: Option<usize>,
+}
+
+impl FmBuildArgs {
     pub fn new(
         input_file_src: String,
-        suffix_array_output_src: &Option<String>,
-        bwt_alphabet: &SymbolAlphabet,
+        suffix_array_output_src: Option<String>,
+        suffix_array_compression_ratio: Option<u8>,
+        alphabet: SymbolAlphabet,
         max_query_len: Option<usize>,
         threads: Option<usize>,
-        suffix_array_compression_ratio: u64,
-        alphabet: SymbolAlphabet,
-    ) -> Result<Self, anyhow::Error> {
-        let suffix_array_src = match suffix_array_output_src {
-            Some(_) => suffix_array_output_src.clone(),
-            None => Some(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned()),
-        };
-        let create_args = sufr::CreateArgs {
-            input: input_file_src,
-            num_partitions: 16, //this is the default, so okay I guess?
+    ) -> Self {
+        return FmBuildArgs {
+            input_file_src,
+            suffix_array_output_src,
+            suffix_array_compression_ratio,
+            alphabet,
             max_query_len,
             threads,
+        };
+    }
+}
+
+impl FmIndex {
+    const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
+
+    pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
+        let suffix_array_src = match args.suffix_array_output_src {
+            Some(_) => args.suffix_array_output_src.clone(),
+            None => Some(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned()),
+        };
+        let sufr_create_args = sufr::CreateArgs {
+            input: args.input_file_src.to_owned(),
+            num_partitions: 16, //this is the default, so okay I guess?
+            max_query_len: args.max_query_len,
+            threads: args.threads,
             output: suffix_array_src.clone(),
-            is_dna: alphabet == SymbolAlphabet::Nucleotide,
+            is_dna: args.alphabet == SymbolAlphabet::Nucleotide,
             allow_ambiguity: true,
             ignore_softmask: true,
         };
-        sufr::create(&create_args);
+        sufr::create(&sufr_create_args);
 
         let suffix_array_file: libsufr::SufrFile<u64> =
             libsufr::SufrFile::read(&suffix_array_src.unwrap())?;
         let bwt_len = suffix_array_file.num_suffixes;
+        let sa_compression_ratio = match args.suffix_array_compression_ratio {
+            Some(ratio) => ratio,
+            None => Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO,
+        };
         let mut compressed_suffix_array =
-            CompressedSuffixArray::new(bwt_len as usize, suffix_array_compression_ratio);
+            CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as u64);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
 
-        let mut bwt = match bwt_alphabet {
+        let mut bwt = match args.alphabet {
             SymbolAlphabet::Nucleotide => {
                 Bwt::Nucleotide(vec![NucleotideBwtBlock::new(); num_bwt_blocks as usize])
             }
@@ -63,16 +90,16 @@ impl FmIndex {
             }
         };
 
-        let alphabet_cardinality = alphabet_cardinality(&bwt_alphabet);
+        let alphabet_cardinality = alphabet_cardinality(&args.alphabet);
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
 
         let mut suffix_array = suffix_array_file.suffix_array;
         for (suffix_idx, suffix_array_value) in suffix_array.iter().enumerate() {
             //generate the sampled suffix array
-            if suffix_idx % suffix_array_compression_ratio as usize == 0 {
+            if suffix_idx % sa_compression_ratio as usize == 0 {
                 compressed_suffix_array.set_value(
                     suffix_array_value,
-                    suffix_idx / suffix_array_compression_ratio as usize,
+                    suffix_idx / sa_compression_ratio as usize,
                 );
             }
             //set the block milestones, if necessary
@@ -89,7 +116,8 @@ impl FmIndex {
                 _ => suffix_array_file.text[(suffix_array_value - 1) as usize] as char,
             };
 
-            let preceding_symbol = Symbol::new_ascii(bwt_alphabet.clone(), preceeding_letter_ascii);
+            let preceding_symbol =
+                Symbol::new_ascii(args.alphabet.clone(), preceeding_letter_ascii);
             let preceding_letter_idx = preceding_symbol.index();
             bwt.set_symbol_at(&(suffix_idx as u64), &preceding_symbol);
             letter_counts[preceding_letter_idx as usize] += 1;
@@ -109,7 +137,7 @@ impl FmIndex {
             bwt,
             prefix_sums,
             sampled_suffix_array: compressed_suffix_array,
-            suffix_array_compression_ratio,
+            suffix_array_compression_ratio: sa_compression_ratio as u64,
             bwt_len,
             version_number: FM_VERSION_NUMBER,
         });
