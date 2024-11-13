@@ -1,20 +1,25 @@
+///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
 pub enum SymbolEncoding {
     Ascii(char),
     Index(u8),
     BitVector(u8),
 }
 
+///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,
 }
 
+///Implementation of a symbol, from a given alphabet, with a given encoding.
 pub struct Symbol {
     alphabet: SymbolAlphabet,
     encoding: SymbolEncoding,
 }
+
 impl SymbolAlphabet {
+    ///Returns the cardinality, or how many different symbols can occur in this alphabet.
     pub fn cardinality(&self) -> u8 {
         match self {
             SymbolAlphabet::Nucleotide => 6,
@@ -24,18 +29,22 @@ impl SymbolAlphabet {
 }
 
 impl Symbol {
+    ///Creates a new Symbol from a given ascii letter
     pub fn new_ascii(alphabet: SymbolAlphabet, ascii: char) -> Symbol {
         Symbol {
             alphabet,
             encoding: SymbolEncoding::Ascii(ascii),
         }
     }
+    ///Creates a new Symbol from a given index into the alphabet
     pub fn new_index(alphabet: SymbolAlphabet, index: u8) -> Symbol {
+        debug_assert!(index < alphabet.cardinality());
         Symbol {
             alphabet,
             encoding: SymbolEncoding::Index(index),
         }
     }
+    ///Creates a new Symbol 
     pub fn new_bit_vector(alphabet: SymbolAlphabet, bit_vector: u8) -> Symbol {
         Symbol {
             alphabet,
