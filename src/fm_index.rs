@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock},
@@ -214,7 +216,7 @@ impl FmIndex {
         &self.sampled_suffix_array
     }
 
-    pub fn kmer_lookup_table(&self)->&KmerLookupTable{
+    pub fn kmer_lookup_table(&self) -> &KmerLookupTable {
         return &self.kmer_lookup_table;
     }
 
@@ -250,7 +252,19 @@ impl FmIndex {
         }
     }
 
+    pub fn parallel_count(&self, queries: Vec<String>) -> Vec<u64> {
+        queries
+            .into_par_iter()
+            .map(|query| self.count_string(&query))
+            .collect()
+    }
 
+    pub fn parallel_locate(&self, queries: Vec<String>) -> Vec<Vec<u64>> {
+        queries
+            .into_par_iter()
+            .map(|query| self.locate_string(&query))
+            .collect()
+    }
 
     pub fn count_string(&self, query: &String) -> u64 {
         let search_range = self.get_search_range_for_string(query);
