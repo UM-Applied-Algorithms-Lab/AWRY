@@ -218,7 +218,7 @@ impl FmIndex {
         return self.prefix_sums[self.prefix_sums.len() - 1] as usize;
     }
 
-    fn get_search_range_for_string(&self, query: &String) -> SearchRange {
+    pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
             let mut search_range = SearchRange::new(self);
             for query_char in query.chars().rev() {
@@ -245,6 +245,8 @@ impl FmIndex {
             return search_range;
         }
     }
+
+
 
     pub fn count_string(&self, query: &String) -> u64 {
         let search_range = self.get_search_range_for_string(query);
