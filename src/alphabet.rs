@@ -25,11 +25,12 @@ pub enum BwtAminoSymbol {
     Index(u8),
     BitVector(u8),
 }
-
-pub fn alphabet_cardinality(alphabet: &SymbolAlphabet) -> u8 {
-    match alphabet {
-        SymbolAlphabet::Nucleotide => 6,
-        SymbolAlphabet::Amino => 22,
+impl SymbolAlphabet {
+    pub fn cardinality(&self) -> u8 {
+        match self {
+            SymbolAlphabet::Nucleotide => 6,
+            SymbolAlphabet::Amino => 22,
+        }
     }
 }
 
@@ -75,7 +76,7 @@ impl Symbol {
 
     /// gets the bit-vector representation of the symbol with the given alphabet and encoding
     #[inline]
-    pub fn bit_vector(&self)->u8{
+    pub fn bit_vector(&self) -> u8 {
         if let SymbolEncoding::BitVector(encoding) = self.to_bit_vector().encoding {
             return encoding;
         } else {

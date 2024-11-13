@@ -1,4 +1,3 @@
-use crate::alphabet::alphabet_cardinality;
 use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
 use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
@@ -194,7 +193,7 @@ impl FmIndex {
                 };
 
                 //write the prefix sums
-                let mut prefix_sums:Vec<u64> = vec![0; alphabet_cardinality(&alphabet) as usize+1];
+                let mut prefix_sums:Vec<u64> = vec![0; alphabet.cardinality() as usize+1];
                 for prefix_sum_idx in 0..prefix_sums.len() {
                     fm_index_file.read_exact(&mut u64_buffer)?;
                     prefix_sums[prefix_sum_idx] = u64::from_le_bytes(u64_buffer);

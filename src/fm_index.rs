@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    alphabet::{alphabet_cardinality, Symbol, SymbolAlphabet},
+    alphabet::{Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
     search::{SearchPtr, SearchRange},
@@ -92,7 +92,7 @@ impl FmIndex {
             }
         };
 
-        let alphabet_cardinality = alphabet_cardinality(&args.alphabet);
+        let alphabet_cardinality = args.alphabet.cardinality();
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
 
         let mut suffix_array = suffix_array_file.suffix_array;
