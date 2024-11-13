@@ -22,7 +22,7 @@ impl FmIndex {
             .truncate(true) // Overwrite if exists
             .open(file_output_src)?;
 
-        fm_index_file.write(FM_FILE_LABEL_STRING);
+        fm_index_file.write(FM_FILE_LABEL_STRING)?;
         let header = self.generate_file_header();
 
         for value in header {
@@ -80,7 +80,7 @@ impl FmIndex {
         let mut u64_buffer: [u8; 8] = [0; 8];
 
         //read the label, and check to make sure it matches what we expect. if it doesn't, it's probably not an fm index file.
-        fm_index_file.read_exact(&mut file_label_buffer);
+        fm_index_file.read_exact(&mut file_label_buffer)?;
 
         //compare the buffer to the expected file label
         let file_label_validated = file_label_buffer.iter().zip(FM_FILE_LABEL_STRING.iter()).all(|(a,b)| a==b);
@@ -157,7 +157,7 @@ impl FmIndex {
 
                             //read the bit vectors for this block
                             let mut bit_vector_buffer:[u8;32*NucleotideBwtBlock::NUM_BIT_VECTORS] = [0;32*NucleotideBwtBlock::NUM_BIT_VECTORS];
-                            fm_index_file.read_exact(&mut bit_vector_buffer);
+                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
                             let buffer_ptr = bit_vector_buffer.as_ptr();
                             let vector_ptr = buffer_ptr as *const SimdVec256;
                             let bit_vector_slice = unsafe{
@@ -175,13 +175,13 @@ impl FmIndex {
                             //read the milestones for this block
                             let mut milestones:[u64;AminoBwtBlock::NUM_MILESTONES] = [0; AminoBwtBlock::NUM_MILESTONES];
                             for milestone_idx in 0..milestones.len(){
-                                fm_index_file.read_exact(&mut u64_buffer);
+                                fm_index_file.read_exact(&mut u64_buffer)?;
                                 milestones[milestone_idx] = u64::from_le_bytes(u64_buffer);
                             }
 
                             //read the bit vectors for this block
                             let mut bit_vector_buffer:[u8;32*AminoBwtBlock::NUM_BIT_VECTORS] = [0;32*AminoBwtBlock::NUM_BIT_VECTORS];
-                            fm_index_file.read_exact(&mut bit_vector_buffer);
+                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
                             let buffer_ptr = bit_vector_buffer.as_ptr();
                             let vector_ptr = buffer_ptr as *const SimdVec256;
                             let bit_vector_slice = unsafe{
@@ -196,14 +196,14 @@ impl FmIndex {
                 //write the prefix sums
                 let mut prefix_sums:Vec<u64> = vec![0; alphabet_cardinality(&alphabet) as usize+1];
                 for prefix_sum_idx in 0..prefix_sums.len() {
-                    fm_index_file.read_exact(&mut u64_buffer);
+                    fm_index_file.read_exact(&mut u64_buffer)?;
                     prefix_sums[prefix_sum_idx] = u64::from_le_bytes(u64_buffer);
                 }
 
                 let mut sampled_suffix_array = CompressedSuffixArray::new(compressed_suffix_array_len, suffix_array_compression_ratio);
                         //write the sampled suffix array
                 for suffix_array_idx in 0..compressed_suffix_array_len{
-                    fm_index_file.read_exact(&mut u64_buffer);
+                    fm_index_file.read_exact(&mut u64_buffer)?;
                     sampled_suffix_array.set_value(u64::from_le_bytes(u64_buffer), suffix_array_idx);
                 }
 
