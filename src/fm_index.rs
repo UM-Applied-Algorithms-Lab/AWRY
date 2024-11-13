@@ -70,8 +70,7 @@ impl FmIndex {
         };
         sufr::create(&sufr_create_args)?;
 
-        let suffix_array_file: libsufr::SufrFile<u64> =
-            libsufr::SufrFile::read(&suffix_array_src)?;
+        let suffix_array_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = suffix_array_file.num_suffixes;
         let sa_compression_ratio = match args.suffix_array_compression_ratio {
             Some(ratio) => ratio,
@@ -166,6 +165,12 @@ impl FmIndex {
         }
     }
 
+    pub fn alphabet(&self) -> SymbolAlphabet {
+        match self.bwt() {
+            Bwt::Nucleotide(_) => SymbolAlphabet::Nucleotide,
+            Bwt::Amino(_) => SymbolAlphabet::Amino,
+        }
+    }
     pub fn suffix_array_compression_ratio(&self) -> u64 {
         self.suffix_array_compression_ratio
     }
@@ -195,7 +200,10 @@ impl FmIndex {
     fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         let mut search_range = SearchRange::new(self);
         for query_char in query.chars().rev() {
-            search_range = self.update_range_with_char(search_range, &query_char);
+            search_range = self.update_range_with_symbol(
+                search_range,
+                Symbol::new_ascii(self.alphabet(), query_char),
+            );
         }
 
         search_range
@@ -235,16 +243,11 @@ impl FmIndex {
         string_locations
     }
 
-    pub fn update_range_with_char(
+    pub fn update_range_with_symbol(
         &self,
         search_range: SearchRange,
-        query_char: &char,
+        query_symbol: Symbol,
     ) -> SearchRange {
-        let alphabet = match &self.bwt {
-            Bwt::Nucleotide(_) => &SymbolAlphabet::Nucleotide,
-            Bwt::Amino(_) => &SymbolAlphabet::Amino,
-        };
-        let query_symbol = Symbol::new_ascii(alphabet.clone(), *query_char);
         let query_symbol_idx = query_symbol.index() as usize;
         let letter_prefix_sum = self.prefix_sums[query_symbol_idx];
         let new_start_ptr = self
