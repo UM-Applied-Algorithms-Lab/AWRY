@@ -54,7 +54,7 @@ impl KmerLookupTable {
         table.range_table.reserve(kmer_table_num_entries);
         let mut u64_buffer: [u8; 8] = [0; 8];
         for table_idx in 0..kmer_table_num_entries {
-            file.read_exact(&mut u64_buffer);
+            file.read_exact(&mut u64_buffer)?;
             table.range_table[table_idx].start_ptr = u64::from_le_bytes(u64_buffer);
             table.range_table[table_idx].end_ptr = u64::from_le_bytes(u64_buffer);
         }
