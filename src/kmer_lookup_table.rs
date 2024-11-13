@@ -44,6 +44,21 @@ impl KmerLookupTable {
     pub fn kmer_len(&self) -> u8 {
         self.kmer_len
     }
+
+    pub fn get_range_for_kmer(&self, fm_index: &FmIndex, kmer: &str)->SearchRange {
+        debug_assert!(kmer.len() >= self.kmer_len as usize);
+
+        let alphabet = fm_index.alphabet();
+        let mut search_range = SearchRange::new(fm_index);
+        for char in kmer.chars().rev().take(self.kmer_len as usize) {
+            search_range =
+                fm_index.update_range_with_symbol(search_range, Symbol::new_ascii(alphabet, char));
+        }
+
+        return search_range;
+    }
+
+    pub fn populate_table(&mut self, fm_index: &FmIndex) {
         let search_range = SearchRange::new(&fm_index);
         self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
     }
