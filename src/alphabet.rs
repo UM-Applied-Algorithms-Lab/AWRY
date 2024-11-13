@@ -14,17 +14,6 @@ pub struct Symbol {
     alphabet: SymbolAlphabet,
     encoding: SymbolEncoding,
 }
-pub enum BwtNucleotideSymbol {
-    Ascii(char),
-    Index(u8),
-    BitVector(u8),
-}
-
-pub enum BwtAminoSymbol {
-    Ascii(u8),
-    Index(u8),
-    BitVector(u8),
-}
 impl SymbolAlphabet {
     pub fn cardinality(&self) -> u8 {
         match self {
