@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use crate::{
-    alphabet::{self, Symbol, SymbolAlphabet},
+    alphabet::{Symbol, SymbolAlphabet},
     bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
-    kmer_lookup_table::{self, KmerLookupTable},
+    kmer_lookup_table::KmerLookupTable,
     search::{SearchPtr, SearchRange},
 };
 
@@ -230,7 +230,19 @@ impl FmIndex {
 
             search_range
         } else {
-            let search_range = self.kmer_lookup_table.
+            let mut search_range = self.kmer_lookup_table.get_range_for_kmer(self, query);
+            for query_char in query
+                .chars()
+                .rev()
+                .skip(self.kmer_lookup_table.kmer_len() as usize)
+            {
+                search_range = self.update_range_with_symbol(
+                    search_range,
+                    Symbol::new_ascii(self.alphabet(), query_char),
+                );
+            }
+
+            return search_range;
         }
     }
 
