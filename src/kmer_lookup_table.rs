@@ -1,4 +1,7 @@
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{
+    fs::File,
+    io::{Error, Read},
+};
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
@@ -9,7 +12,6 @@ use crate::{
 pub struct KmerLookupTable {
     range_table: Vec<SearchRange>,
     kmer_len: u8,
-    alphabet: SymbolAlphabet,
 }
 
 impl KmerLookupTable {
@@ -18,13 +20,11 @@ impl KmerLookupTable {
 
     pub fn new(fm_index: &FmIndex, kmer_len: u8) -> Self {
         let alphabet = fm_index.alphabet();
-        let cardinality = alphabet.cardinality();
-        let kmer_table_len = cardinality.pow(kmer_len as u32);
+        let kmer_table_len = Self::get_num_table_entries(kmer_len, alphabet);
 
         let mut lookup_table = KmerLookupTable {
             range_table: Vec::new(),
             kmer_len,
-            alphabet: alphabet.clone(),
         };
         lookup_table.range_table.reserve(kmer_table_len as usize);
 
@@ -37,15 +37,40 @@ impl KmerLookupTable {
         KmerLookupTable {
             range_table: Vec::new(),
             kmer_len: 0,
-            alphabet: SymbolAlphabet::Nucleotide,
         }
+    }
+
+    pub fn from_file(file: &mut File, alphabet: SymbolAlphabet) -> Result<Self, Error> {
+        let mut u8_buffer: [u8; 1] = [0; 1];
+        file.read_exact(&mut u8_buffer)?;
+        let kmer_len = u8::from_le_bytes(u8_buffer);
+
+        let kmer_table_num_entries = Self::get_num_table_entries(kmer_len, alphabet);
+        let mut table = KmerLookupTable {
+            range_table: Vec::new(),
+            kmer_len,
+        };
+
+        table.range_table.reserve(kmer_table_num_entries);
+        let mut u64_buffer: [u8; 8] = [0; 8];
+        for table_idx in 0..kmer_table_num_entries {
+            file.read_exact(&mut u64_buffer);
+            table.range_table[table_idx].start_ptr = u64::from_le_bytes(u64_buffer);
+            table.range_table[table_idx].end_ptr = u64::from_le_bytes(u64_buffer);
+        }
+
+        return Ok(table);
+    }
+
+    pub fn table(&self) -> &Vec<SearchRange> {
+        return &self.range_table;
     }
 
     pub fn kmer_len(&self) -> u8 {
         self.kmer_len
     }
 
-    pub fn get_range_for_kmer(&self, fm_index: &FmIndex, kmer: &str)->SearchRange {
+    pub fn get_range_for_kmer(&self, fm_index: &FmIndex, kmer: &str) -> SearchRange {
         debug_assert!(kmer.len() >= self.kmer_len as usize);
 
         let alphabet = fm_index.alphabet();
@@ -63,6 +88,9 @@ impl KmerLookupTable {
         self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
     }
 
+    fn get_num_table_entries(kmer_len: u8, alphabet: SymbolAlphabet) -> usize {
+        (alphabet.cardinality() as usize).pow(kmer_len as u32)
+    }
     fn populate_table_recursive(
         &mut self,
         fm_index: &FmIndex,

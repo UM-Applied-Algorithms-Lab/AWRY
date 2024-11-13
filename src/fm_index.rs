@@ -214,6 +214,10 @@ impl FmIndex {
         &self.sampled_suffix_array
     }
 
+    pub fn kmer_lookup_table(&self)->&KmerLookupTable{
+        return &self.kmer_lookup_table;
+    }
+
     pub fn len(&self) -> usize {
         return self.prefix_sums[self.prefix_sums.len() - 1] as usize;
     }

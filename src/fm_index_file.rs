@@ -1,6 +1,7 @@
 use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
 use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
+use crate::kmer_lookup_table::KmerLookupTable;
 use crate::simd_instructions::SimdVec256;
 use crate::{alphabet::SymbolAlphabet, bwt::Bwt};
 use std::convert::TryInto;
@@ -66,6 +67,14 @@ impl FmIndex {
         for suffix_array_value in self.sampled_suffix_array().data() {
             fm_index_file.write_all(&suffix_array_value.to_le_bytes())?;
         }
+
+        //write the kmer lookup table
+        fm_index_file.write(&self.kmer_lookup_table().kmer_len().to_le_bytes())?;
+        for range in self.kmer_lookup_table().table(){
+            fm_index_file.write_all(&range.start_ptr.to_le_bytes())?;
+            fm_index_file.write_all(&range.end_ptr.to_le_bytes())?;
+        }
+
         return Ok(());
     }
 
@@ -206,8 +215,9 @@ impl FmIndex {
                     sampled_suffix_array.set_value(u64::from_le_bytes(u64_buffer), suffix_array_idx);
                 }
 
+                let kmer_lookup_table = KmerLookupTable::from_file(fm_index_file, alphabet)?;
 
-                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, suffix_array_compression_ratio, bwt_len, version_number));
+                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, suffix_array_compression_ratio,kmer_lookup_table, bwt_len, version_number));
             }
         }
     }
