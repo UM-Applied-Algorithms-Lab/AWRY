@@ -5,6 +5,7 @@ use crate::{
     fm_index::FmIndex,
     search::SearchRange,
 };
+#[derive(Clone)]
 pub struct KmerLookupTable {
     range_table: Vec<SearchRange>,
     kmer_len: u8,
@@ -23,7 +24,7 @@ impl KmerLookupTable {
         let mut lookup_table = KmerLookupTable {
             range_table: Vec::new(),
             kmer_len,
-            alphabet,
+            alphabet: alphabet.clone(),
         };
         lookup_table.range_table.reserve(kmer_table_len as usize);
 
