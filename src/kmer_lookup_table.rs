@@ -33,7 +33,17 @@ impl KmerLookupTable {
         return lookup_table;
     }
 
-    fn populate_table(&mut self, fm_index: &FmIndex) {
+    pub fn empty() -> Self {
+        KmerLookupTable {
+            range_table: Vec::new(),
+            kmer_len: 0,
+            alphabet: SymbolAlphabet::Nucleotide,
+        }
+    }
+
+    pub fn kmer_len(&self) -> u8 {
+        self.kmer_len
+    }
         let search_range = SearchRange::new(&fm_index);
         self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
     }

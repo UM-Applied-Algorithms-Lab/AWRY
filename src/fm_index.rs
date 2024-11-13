@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use crate::{
-    alphabet::{Symbol, SymbolAlphabet},
-    bwt::{Bwt, AminoBwtBlock, NucleotideBwtBlock},
+    alphabet::{self, Symbol, SymbolAlphabet},
+    bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
+    kmer_lookup_table::{self, KmerLookupTable},
     search::{SearchPtr, SearchRange},
 };
 
@@ -13,6 +14,7 @@ pub struct FmIndex {
     bwt: Bwt,
     prefix_sums: Vec<u64>,
     sampled_suffix_array: CompressedSuffixArray,
+    kmer_lookup_table: KmerLookupTable,
     suffix_array_compression_ratio: u64,
     bwt_len: u64,
     version_number: u64,
@@ -24,6 +26,7 @@ pub struct FmBuildArgs {
     input_file_src: String,
     suffix_array_output_src: Option<String>,
     suffix_array_compression_ratio: Option<u8>,
+    lookup_table_kmer_len: Option<u8>,
     alphabet: SymbolAlphabet,
     max_query_len: Option<usize>,
     threads: Option<usize>,
@@ -34,6 +37,7 @@ impl FmBuildArgs {
         input_file_src: String,
         suffix_array_output_src: Option<String>,
         suffix_array_compression_ratio: Option<u8>,
+        lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
         max_query_len: Option<usize>,
         threads: Option<usize>,
@@ -42,6 +46,7 @@ impl FmBuildArgs {
             input_file_src,
             suffix_array_output_src,
             suffix_array_compression_ratio,
+            lookup_table_kmer_len,
             alphabet,
             max_query_len,
             threads,
@@ -133,17 +138,32 @@ impl FmIndex {
             }
         }
 
-        //remove the temp uncompressed suffix array file, since we no longer need it.
-        std::fs::remove_file(Path::new(&suffix_array_src))?;
+        //create the kmer lookup table
+        let kmer_lookup_table_len = match args.lookup_table_kmer_len {
+            Some(len) => len,
+            None => KmerLookupTable::default_kmer_len(args.alphabet),
+        };
 
-        return Ok(FmIndex {
+        //generate  the fm index. This must be done before the kmer lookup table can be populated, so for now just use an empty table
+        let mut fm_index = FmIndex {
             bwt,
             prefix_sums,
             sampled_suffix_array: compressed_suffix_array,
             suffix_array_compression_ratio: sa_compression_ratio as u64,
+            kmer_lookup_table: KmerLookupTable::empty(),
             bwt_len,
             version_number: FM_VERSION_NUMBER,
-        });
+        };
+
+        //now that the fm index has been generated, we can populate the kmer lookup table
+        let mut kmer_lookup_table = KmerLookupTable::new(&fm_index, kmer_lookup_table_len);
+        kmer_lookup_table.populate_table(&fm_index);
+        fm_index.kmer_lookup_table = kmer_lookup_table;
+
+        //remove the temp uncompressed suffix array file, since we no longer need it.
+        std::fs::remove_file(Path::new(&suffix_array_src))?;
+
+        return Ok(fm_index);
     }
 
     pub fn from_elements(
@@ -151,6 +171,7 @@ impl FmIndex {
         prefix_sums: Vec<u64>,
         sampled_suffix_array: CompressedSuffixArray,
         suffix_array_compression_ratio: u64,
+        kmer_lookup_table: KmerLookupTable,
         bwt_len: u64,
         version_number: u64,
     ) -> FmIndex {
@@ -159,6 +180,7 @@ impl FmIndex {
             prefix_sums,
             sampled_suffix_array,
             suffix_array_compression_ratio,
+            kmer_lookup_table,
             bwt_len,
             version_number,
         }
@@ -197,15 +219,19 @@ impl FmIndex {
     }
 
     fn get_search_range_for_string(&self, query: &String) -> SearchRange {
-        let mut search_range = SearchRange::new(self);
-        for query_char in query.chars().rev() {
-            search_range = self.update_range_with_symbol(
-                search_range,
-                Symbol::new_ascii(self.alphabet(), query_char),
-            );
-        }
+        if query.len() < self.kmer_lookup_table.kmer_len() as usize {
+            let mut search_range = SearchRange::new(self);
+            for query_char in query.chars().rev() {
+                search_range = self.update_range_with_symbol(
+                    search_range,
+                    Symbol::new_ascii(self.alphabet(), query_char),
+                );
+            }
 
-        search_range
+            search_range
+        } else {
+            let search_range = self.kmer_lookup_table.
+        }
     }
 
     pub fn count_string(&self, query: &String) -> u64 {
