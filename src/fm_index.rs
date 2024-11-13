@@ -2,11 +2,10 @@ use std::path::Path;
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
-    bwt::{AminoBwtBlock, NucleotideBwtBlock},
+    bwt::{Bwt, AminoBwtBlock, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
     search::{SearchPtr, SearchRange},
 };
-use bwt::Bwt;
 
 pub const FM_VERSION_NUMBER: u64 = 1;
 
