@@ -68,7 +68,7 @@ impl FmIndex {
             allow_ambiguity: true,
             ignore_softmask: true,
         };
-        sufr::create(&sufr_create_args);
+        sufr::create(&sufr_create_args)?;
 
         let suffix_array_file: libsufr::SufrFile<u64> =
             libsufr::SufrFile::read(&suffix_array_src)?;
@@ -136,7 +136,7 @@ impl FmIndex {
         }
 
         //remove the temp uncompressed suffix array file, since we no longer need it.
-        std::fs::remove_file(Path::new(&suffix_array_src));
+        std::fs::remove_file(Path::new(&suffix_array_src))?;
 
         return Ok(FmIndex {
             bwt,
