@@ -12,7 +12,10 @@ pub struct KmerLookupTable {
 }
 
 impl KmerLookupTable {
-    pub fn new(kmer_len: u8, fm_index: FmIndex) -> Self {
+    const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 14;
+    const DEFAULT_KMER_LEN_AMINO: u8 = 5;
+
+    pub fn new(fm_index: &FmIndex, kmer_len: u8) -> Self {
         let alphabet = fm_index.alphabet();
         let cardinality = alphabet.cardinality();
         let kmer_table_len = cardinality.pow(kmer_len as u32);
@@ -24,7 +27,7 @@ impl KmerLookupTable {
         };
         lookup_table.range_table.reserve(kmer_table_len as usize);
 
-        lookup_table.populate_table(&fm_index);
+        lookup_table.populate_table(fm_index);
 
         return lookup_table;
     }
@@ -63,6 +66,12 @@ impl KmerLookupTable {
                 new_kmer_idx,
                 new_letter_multiplier,
             );
+        }
+    }
+    pub fn default_kmer_len(alphabet: SymbolAlphabet) -> u8 {
+        match alphabet {
+            SymbolAlphabet::Nucleotide => Self::DEFAULT_KMER_LEN_NUCLEOTIDE,
+            SymbolAlphabet::Amino => Self::DEFAULT_KMER_LEN_AMINO,
         }
     }
 }
