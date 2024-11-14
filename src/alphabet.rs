@@ -340,17 +340,27 @@ mod tests {
         for ascii_letter in "acgtnACGTN$".chars() {
             let alphabet = SymbolAlphabet::Nucleotide;
             let ascii_symbol = Symbol::new_ascii(alphabet, ascii_letter);
-            assert_eq!(ascii_symbol, ascii_symbol.to_bit_vector().to_ascii());
             assert_eq!(
                 ascii_symbol,
-                ascii_symbol.to_bit_vector().to_index().to_ascii()
+                ascii_symbol.to_bit_vector().to_ascii(),
+                "ascii->bit_vector->ascii"
             );
-            assert_eq!(ascii_symbol, ascii_symbol.to_index().to_ascii());
             assert_eq!(
                 ascii_symbol,
-                ascii_symbol.to_index().to_bit_vector().to_ascii()
+                ascii_symbol.to_bit_vector().to_index().to_ascii(),
+                "ascii->bitvector->index->ascii"
             );
-            assert_eq!(ascii_symbol, ascii_symbol.to_ascii());
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_index().to_ascii(),
+                "ascii->index->ascii"
+            );
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_index().to_bit_vector().to_ascii(),
+                "Ascii->index->bitvector->ascii"
+            );
+            assert_eq!(ascii_symbol, ascii_symbol.to_ascii(), "ascii->ascii");
         }
 
         Ok(())
