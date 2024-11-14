@@ -1,12 +1,12 @@
 /// Struct representing a sampled suffix array. Sampling the suffix array reduces the memory requirement, while still being able to reconstruct
 /// the original position when used in conjunction with the rest of the FM-index.
-/// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory. 
+/// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory.
 pub struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
-    data: Vec<u64>, 
+    data: Vec<u64>,
     /// By what factor is the suffix array downsampled. a ratio of n only stores values whose indices are divisible by n.
     suffix_array_compression_ratio: u64,
-    /// how many bits are required to store each value, i.e., an unsampled SA of length n will require log2_ceil(n) bits per element. 
+    /// how many bits are required to store each value, i.e., an unsampled SA of length n will require log2_ceil(n) bits per element.
     bits_per_element: u64,
 }
 
@@ -31,6 +31,9 @@ impl CompressedSuffixArray {
     /// Returns a reference to the underlying compressed SA data
     pub fn data(&self) -> &Vec<u64> {
         &self.data
+    }
+    pub fn compression_ratio(&self) -> u64 {
+        self.suffix_array_compression_ratio
     }
 
     /// sets the value in the compressed suffix array.
@@ -67,11 +70,11 @@ impl CompressedSuffixArray {
         let word_position = position / 64;
         let bit_position = position % 64;
 
-        let unmasked_value =  self.data[word_position] >> bit_position
+        let unmasked_value = self.data[word_position] >> bit_position
             | (self.data[word_position + 1] >> (64 - bit_position));
-        let bitmask = (1<<self.bits_per_element)-1;
+        let bitmask = (1 << self.bits_per_element) - 1;
 
-            return unmasked_value & bitmask;
+        return unmasked_value & bitmask;
     }
 
     /// Returns true if the given position is sampled in the compressed suffix array.

@@ -18,7 +18,7 @@ pub struct FmIndex {
     prefix_sums: Vec<u64>,
     sampled_suffix_array: CompressedSuffixArray,
     kmer_lookup_table: KmerLookupTable,
-    suffix_array_compression_ratio: u64,
+    
     bwt_len: u64,
     version_number: u64,
 }
@@ -153,7 +153,6 @@ impl FmIndex {
             bwt,
             prefix_sums,
             sampled_suffix_array: compressed_suffix_array,
-            suffix_array_compression_ratio: sa_compression_ratio as u64,
             kmer_lookup_table: KmerLookupTable::empty(),
             bwt_len,
             version_number: FM_VERSION_NUMBER,
@@ -174,7 +173,6 @@ impl FmIndex {
         bwt: Bwt,
         prefix_sums: Vec<u64>,
         sampled_suffix_array: CompressedSuffixArray,
-        suffix_array_compression_ratio: u64,
         kmer_lookup_table: KmerLookupTable,
         bwt_len: u64,
         version_number: u64,
@@ -183,7 +181,6 @@ impl FmIndex {
             bwt,
             prefix_sums,
             sampled_suffix_array,
-            suffix_array_compression_ratio,
             kmer_lookup_table,
             bwt_len,
             version_number,
@@ -197,7 +194,7 @@ impl FmIndex {
         }
     }
     pub fn suffix_array_compression_ratio(&self) -> u64 {
-        self.suffix_array_compression_ratio
+        self.sampled_suffix_array.compression_ratio()
     }
 
     pub fn bwt_len(&self) -> u64 {

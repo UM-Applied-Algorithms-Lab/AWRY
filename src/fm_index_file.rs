@@ -225,7 +225,7 @@ impl FmIndex {
 
                 let kmer_lookup_table = KmerLookupTable::from_file(fm_index_file, alphabet)?;
 
-                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, suffix_array_compression_ratio,kmer_lookup_table, bwt_len, version_number));
+                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, kmer_lookup_table, bwt_len, version_number));
             }
         }
     }
