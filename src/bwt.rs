@@ -153,8 +153,8 @@ impl AminoBwtBlock {
 }
 
 pub enum Bwt {
-    Nucleotide(Vec<NucleotideBwtBlock>),
-    Amino(Vec<AminoBwtBlock>),
+    Nucleotide(AVec<NucleotideBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
+    Amino(AVec<AminoBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
 }
 
 impl Bwt {

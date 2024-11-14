@@ -1,3 +1,5 @@
+use aligned_vec::AVec;
+
 use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
 use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
@@ -31,7 +33,7 @@ impl FmIndex {
         //write the BWT to file
         match self.bwt() {
             crate::bwt::Bwt::Nucleotide(vec) => {
-                for block in vec {
+                for block in vec.iter() {
                     for milestone in block.milestones() {
                         fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
@@ -44,7 +46,7 @@ impl FmIndex {
                 }
             }
             crate::bwt::Bwt::Amino(vec) => {
-                for block in vec {
+                for block in vec.iter() {
                     for milestone in block.milestones() {
                         fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
@@ -174,7 +176,7 @@ impl FmIndex {
                             bwt_block_list[block_idx] = NucleotideBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
                         }
 
-                        Bwt::Nucleotide(bwt_block_list)
+                        Bwt::Nucleotide(AVec::from_iter(crate::bwt::SIMD_ALIGNMENT_BYTES, bwt_block_list.into_iter()))
 
                     },
                     SymbolAlphabet::Amino =>{
@@ -197,7 +199,7 @@ impl FmIndex {
                             };
                             bwt_block_list[block_idx] = AminoBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
                         }
-                        Bwt::Amino(bwt_block_list)
+                        Bwt::Amino(AVec::from_iter(crate::bwt::SIMD_ALIGNMENT_BYTES, bwt_block_list.into_iter()))
                     },
                 };
 

@@ -1,10 +1,11 @@
 use std::path::Path;
 
+use aligned_vec::avec;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
-    bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock},
+    bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock, SIMD_ALIGNMENT_BYTES},
     compressed_suffix_array::CompressedSuffixArray,
     kmer_lookup_table::KmerLookupTable,
     search::{SearchPtr, SearchRange},
@@ -89,12 +90,13 @@ impl FmIndex {
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
 
         let mut bwt = match args.alphabet {
-            SymbolAlphabet::Nucleotide => {
-                Bwt::Nucleotide(vec![NucleotideBwtBlock::new(); num_bwt_blocks as usize])
-            }
-            SymbolAlphabet::Amino => {
-                Bwt::Amino(vec![AminoBwtBlock::new(); num_bwt_blocks as usize])
-            }
+            SymbolAlphabet::Nucleotide => Bwt::Nucleotide(
+                avec![[SIMD_ALIGNMENT_BYTES] | NucleotideBwtBlock::new(); num_bwt_blocks as usize],
+            ),
+            SymbolAlphabet::Amino => Bwt::Amino(avec![
+                [SIMD_ALIGNMENT_BYTES] | AminoBwtBlock::new();
+                num_bwt_blocks as usize
+            ]),
         };
 
         let alphabet_cardinality = args.alphabet.cardinality();
