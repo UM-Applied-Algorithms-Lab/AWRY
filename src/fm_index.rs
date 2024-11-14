@@ -13,10 +13,15 @@ use crate::{
 
 pub const FM_VERSION_NUMBER: u64 = 1;
 
+///Primary FM-index struct
 pub struct FmIndex {
+    ///BWT-component of the FM-index
     bwt: Bwt,
+    ///Prefix Sums, i.e., where in the BWT the given letter starts its range at
     prefix_sums: Vec<u64>,
+    /// suffix array used to resolve kmer locations
     sampled_suffix_array: CompressedSuffixArray,
+    /// table with precomputed ranges for the first k substring of a query.
     kmer_lookup_table: KmerLookupTable,
     
     bwt_len: u64,
@@ -169,6 +174,7 @@ impl FmIndex {
         return Ok(fm_index);
     }
 
+    /// Creates a new FM-index from its constituent parts
     pub fn from_elements(
         bwt: Bwt,
         prefix_sums: Vec<u64>,
@@ -187,38 +193,50 @@ impl FmIndex {
         }
     }
 
+    /// Gets the alphabet the BWT is made from.
     pub fn alphabet(&self) -> SymbolAlphabet {
         match self.bwt() {
             Bwt::Nucleotide(_) => SymbolAlphabet::Nucleotide,
             Bwt::Amino(_) => SymbolAlphabet::Amino,
         }
     }
+
+    /// Gets the suffix array compression ratio from the compressed suffix array.
     pub fn suffix_array_compression_ratio(&self) -> u64 {
         self.sampled_suffix_array.compression_ratio()
     }
 
+    /// Gets the length of the BWT
     pub fn bwt_len(&self) -> u64 {
         self.bwt_len
     }
 
+    /// Gets the Version number for the FM-index.
     pub fn version_number(&self) -> u64 {
         self.version_number
     }
+
+    /// Gets a reference to the Bwt.
     pub fn bwt(&self) -> &Bwt {
         &self.bwt
     }
+
+    // Gets a reference to the prefix sums.
     pub fn prefix_sums(&self) -> &Vec<u64> {
         &self.prefix_sums
     }
 
+    /// Gets a reference to the compressed suffix array.
     pub fn sampled_suffix_array(&self) -> &CompressedSuffixArray {
         &self.sampled_suffix_array
     }
 
+    /// Gets a reference to the kmer lookup table.
     pub fn kmer_lookup_table(&self) -> &KmerLookupTable {
         return &self.kmer_lookup_table;
     }
 
+    /// Finds the search range for the given query. This is the heart of the count() and locate() functions.
     pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
             let mut search_range = SearchRange::new(self);
@@ -247,20 +265,23 @@ impl FmIndex {
         }
     }
 
-    pub fn parallel_count(&self, queries: Vec<String>) -> Vec<u64> {
+    // Finds the counts for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
+    pub fn parallel_count(&self, queries: &Vec<String>) -> Vec<u64> {
         queries
             .into_par_iter()
             .map(|query| self.count_string(&query))
             .collect()
     }
 
-    pub fn parallel_locate(&self, queries: Vec<String>) -> Vec<Vec<u64>> {
+    // Finds the locations for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
+    pub fn parallel_locate(&self, queries: &Vec<String>) -> Vec<Vec<u64>> {
         queries
             .into_par_iter()
             .map(|query| self.locate_string(&query))
             .collect()
     }
 
+    /// Finds the count for the given query.
     pub fn count_string(&self, query: &String) -> u64 {
         let search_range = self.get_search_range_for_string(query);
         if search_range.start_ptr > search_range.end_ptr {
@@ -270,10 +291,12 @@ impl FmIndex {
         }
     }
 
+    /// Finds the locations in the original text of all isntances of the given query.
     pub fn locate_string(&self, query: &String) -> Vec<u64> {
         let mut string_locations: Vec<u64> = Vec::new();
         let search_range = self.get_search_range_for_string(query);
 
+        // backstep each location until we find a sampled position
         for search_range_idx in search_range.range_iter() {
             let mut num_backsteps_taken: u64 = 0;
             let mut backstep_position = search_range_idx;
@@ -284,17 +307,19 @@ impl FmIndex {
                 backstep_position = self.backstep(backstep_position);
                 num_backsteps_taken += 1;
             }
-            let suffix_array_position = backstep_position + num_backsteps_taken;
-            let sequence_position = match self.sampled_suffix_array.get_value(suffix_array_position as usize){
+
+            //read the sampled suffix array value, and add the number of backsteps taken to find the real position
+            let sequence_position = match self.sampled_suffix_array.get_value(backstep_position as usize){
                 Some(position) => position,
                 None => panic!("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data."),
             };
-            string_locations.push(sequence_position);
+            string_locations.push(sequence_position + num_backsteps_taken);
         }
 
         string_locations
     }
 
+    /// Perform a single SearchRange updated using a given symbol.
     pub fn update_range_with_symbol(
         &self,
         search_range: SearchRange,
@@ -317,6 +342,7 @@ impl FmIndex {
         }
     }
 
+    /// Finds the symbol that preceeds the given search pointer, used for finding the most recent sampled SA position.
     pub fn backstep(&self, search_pointer: SearchPtr) -> SearchPtr {
         let symbol = self.bwt.get_symbol_at(&search_pointer);
         let symbol_prefix_sum = self.prefix_sums[symbol.index() as usize];
