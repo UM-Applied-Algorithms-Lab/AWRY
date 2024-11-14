@@ -48,11 +48,11 @@ impl NucleotideBwtBlock {
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
-    pub fn milestones(&self) -> [u64; Self::NUM_MILESTONES] {
-        self.milestones
+    pub fn milestones(&self) -> &[u64] {
+        &self.milestones
     }
-    pub fn bit_vectors(&self) -> [SimdVec256; Self::NUM_BIT_VECTORS] {
-        self.bit_vectors
+    pub fn bit_vectors(&self) -> &[SimdVec256] {
+        &self.bit_vectors
     }
 
     #[inline]
