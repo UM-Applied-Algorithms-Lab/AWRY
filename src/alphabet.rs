@@ -235,12 +235,12 @@ impl Symbol {
                         _ => 0b010, //ambiguity char N
                     },
                     SymbolEncoding::Index(encoding) => match encoding {
-                        0 => 0b100,
-                        1 => 0b110,
-                        2 => 0b101,
-                        3 => 0b011,
-                        5 => 0b010,
-                        _ => 0b000, //4 is ambiguity character,
+                        0 => 0b100, //sentinel
+                        1 => 0b110, //A
+                        2 => 0b101, //C
+                        3 => 0b011, //G
+                        5 => 0b001, //T
+                        _ => 0b010, //4 is ambiguity character,
                     },
                     SymbolEncoding::BitVector(encoding) => encoding,
                 }),
