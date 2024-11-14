@@ -3,6 +3,7 @@ use crate::fm_index::FmIndex;
 /// Type representing a position in the BWT
 pub type SearchPtr = u64;
 
+/// Represents the range in the BWT that corresponds to a query. A range is valid (corresponds to at least one position) as long as start_ptr <= end_ptr
 #[derive(Clone)]
 pub struct SearchRange {
     pub start_ptr: SearchPtr,
@@ -10,6 +11,7 @@ pub struct SearchRange {
 }
 
 impl SearchRange {
+    /// Creates a new SearchRange, representing all positions in the BWT
     pub fn new(fm_index: &FmIndex) -> Self {
         SearchRange {
             start_ptr: 0 as SearchPtr,
@@ -17,6 +19,7 @@ impl SearchRange {
         }
     }
 
+    /// Creates a new SearchRange, representing only the first position (the sentinel character)
     pub fn zero() -> Self {
         SearchRange {
             start_ptr: 0,
@@ -38,6 +41,7 @@ impl SearchRange {
         }
     }
 
+    /// Returns an interator over the BWT positions corresponding to this search range
     pub fn range_iter(&self) -> core::ops::Range<SearchPtr> {
         self.start_ptr..(self.end_ptr + 1)
     }
