@@ -12,8 +12,8 @@ pub struct SearchRange {
 impl SearchRange {
     pub fn new(fm_index: &FmIndex) -> Self {
         SearchRange {
-            start_ptr: (0),
-            end_ptr: (fm_index.len() as SearchPtr),
+            start_ptr: 0 as SearchPtr,
+            end_ptr: fm_index.bwt_len() - 1 as SearchPtr,
         }
     }
 

@@ -219,10 +219,6 @@ impl FmIndex {
         return &self.kmer_lookup_table;
     }
 
-    pub fn len(&self) -> usize {
-        return self.prefix_sums[self.prefix_sums.len() - 1] as usize;
-    }
-
     pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
             let mut search_range = SearchRange::new(self);
