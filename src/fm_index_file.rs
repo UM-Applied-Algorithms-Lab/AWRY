@@ -17,13 +17,14 @@ use std::{
 const FM_FILE_LABEL_STRING:&[u8;11] = b"AWRY-Index\n";
 
 impl FmIndex {
+    /// Saves them FM-index to disk at the given file path
     pub fn save(&self, file_output_src: &Path) -> Result<(), Error> {
         let mut fm_index_file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true) // Overwrite if exists
             .open(file_output_src)?;
-
+        //write the file label string so that the file type can be identified in a text editor
         fm_index_file.write(FM_FILE_LABEL_STRING)?;
         let header = self.generate_file_header();
 
@@ -80,11 +81,14 @@ impl FmIndex {
         return Ok(());
     }
 
+    ///Loads the fm-index file from the given file path
     pub fn load(fm_file_src: &Path) -> Result<FmIndex, Error> {
         let mut fm_index_file = std::fs::OpenOptions::new()
             .write(false)
             .read(true)
             .open(fm_file_src)?;
+
+        //read and check the file label
         let mut file_label_buffer: [u8; FM_FILE_LABEL_STRING.len()] =
             [0; FM_FILE_LABEL_STRING.len()];
         let mut u64_buffer: [u8; 8] = [0; 8];
@@ -109,7 +113,7 @@ impl FmIndex {
     }
 
 
-    ///generates the file header from the data in the fm-index. This header
+    /// generates the file header from the data in the fm-index. This header
     /// may differ on different versions of the index
     fn generate_file_header(&self) -> Vec<u64> {
         match self.version_number() {
@@ -131,6 +135,8 @@ impl FmIndex {
             }
         }
     }
+
+    /// Reads the main contents of an fm index file, depending on the found version number.
     fn read_fm_index_by_version_number(fm_index_file: &mut std::fs::File, version_number: u64) -> Result<FmIndex, Error> {
         match version_number{
             _=>{
