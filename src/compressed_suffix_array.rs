@@ -4,8 +4,6 @@
 pub struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
     data: Vec<u64>, 
-    ///Length of the uncompressed suffix array, this is different than data.len() 
-    length: usize,
     /// By what factor is the suffix array downsampled. a ratio of n only stores values whose indices are divisible by n.
     suffix_array_compression_ratio: u64,
     /// how many bits are required to store each value, i.e., an unsampled SA of length n will require log2_ceil(n) bits per element. 
@@ -25,7 +23,6 @@ impl CompressedSuffixArray {
 
         CompressedSuffixArray {
             data: vec![0; length],
-            length,
             suffix_array_compression_ratio,
             bits_per_element: num_bits_required,
         }
