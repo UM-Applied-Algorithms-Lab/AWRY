@@ -112,8 +112,8 @@ impl AminoBwtBlock {
         self.milestones
     }
 
-    pub fn bit_vectors(&self) -> [SimdVec256; Self::NUM_BIT_VECTORS] {
-        self.bit_vectors
+    pub fn bit_vectors(&self) -> &[SimdVec256; Self::NUM_BIT_VECTORS] {
+        &self.bit_vectors
     }
     #[inline]
     pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
