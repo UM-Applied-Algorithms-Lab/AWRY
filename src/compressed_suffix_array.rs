@@ -1,11 +1,19 @@
+/// Struct representing a sampled suffix array. Sampling the suffix array reduces the memory requirement, while still being able to reconstruct
+/// the original position when used in conjunction with the rest of the FM-index.
+/// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory. 
 pub struct CompressedSuffixArray {
-    data: Vec<u64>,
+    ///Actual Suffix Array values, compressed to remove leading zeros
+    data: Vec<u64>, 
+    ///Length of the uncompressed suffix array, this is different than data.len() 
     length: usize,
+    /// By what factor is the suffix array downsampled. a ratio of n only stores values whose indices are divisible by n.
     suffix_array_compression_ratio: u64,
+    /// how many bits are required to store each value, i.e., an unsampled SA of length n will require log2_ceil(n) bits per element. 
     bits_per_element: u64,
 }
 
 impl CompressedSuffixArray {
+    /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
     pub fn new(length: usize, suffix_array_compression_ratio: u64) -> Self {
         //finds how many bits would be required to store any integer in the range 0 to length-1
         let mut num_bits_required: u64 = 0;
@@ -23,11 +31,12 @@ impl CompressedSuffixArray {
         }
     }
 
+    /// Returns a reference to the underlying compressed SA data
     pub fn data(&self) -> &Vec<u64> {
         &self.data
     }
 
-    ///sets the value in the compressed suffix array.
+    /// sets the value in the compressed suffix array.
     /// NOTE! the position is the compressed position, not the position in the full SA.
     pub fn set_value(&mut self, value: u64, position: usize) {
         let word_position = position / 64;
@@ -68,6 +77,7 @@ impl CompressedSuffixArray {
             return unmasked_value & bitmask;
     }
 
+    /// Returns true if the given position is sampled in the compressed suffix array.
     pub fn position_is_sampled(&self, unsampled_position: u64) -> bool {
         return unsampled_position % self.suffix_array_compression_ratio == 0;
     }
