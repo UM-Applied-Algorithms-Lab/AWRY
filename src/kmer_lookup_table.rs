@@ -8,6 +8,8 @@ use crate::{
     fm_index::FmIndex,
     search::SearchRange,
 };
+
+///Table storing precomputed SearchRanges for all kmers of a given length.
 #[derive(Clone)]
 pub struct KmerLookupTable {
     range_table: Vec<SearchRange>,
@@ -18,6 +20,7 @@ impl KmerLookupTable {
     const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 14;
     const DEFAULT_KMER_LEN_AMINO: u8 = 5;
 
+    /// Creates and populates a new table for all kmers of the given length
     pub fn new(fm_index: &FmIndex, kmer_len: u8) -> Self {
         let alphabet = fm_index.alphabet();
         let kmer_table_len = Self::get_num_table_entries(kmer_len, alphabet);
@@ -33,13 +36,20 @@ impl KmerLookupTable {
         return lookup_table;
     }
 
-    pub fn empty() -> Self {
-        KmerLookupTable {
+    /// Creates an empty table with capacity to hold all kmers of the given length. The populate_table() func can later be called to fill in the table
+    pub fn empty(kmer_len: u8, alphabet: SymbolAlphabet) -> Self {
+        let mut table = KmerLookupTable {
             range_table: Vec::new(),
             kmer_len: 0,
-        }
+        };
+        table
+            .range_table
+            .reserve(Self::get_num_table_entries(kmer_len, alphabet));
+
+        return table;
     }
 
+    /// Reads the kmer table from a file pointer. The file must be pointing to the beginning of the table.
     pub fn from_file(file: &mut File, alphabet: SymbolAlphabet) -> Result<Self, Error> {
         let mut u8_buffer: [u8; 1] = [0; 1];
         file.read_exact(&mut u8_buffer)?;
@@ -62,14 +72,17 @@ impl KmerLookupTable {
         return Ok(table);
     }
 
+    /// Gets a reference to the table data
     pub fn table(&self) -> &Vec<SearchRange> {
         return &self.range_table;
     }
 
+    /// Gets the length of the kmers referenced in this table
     pub fn kmer_len(&self) -> u8 {
         self.kmer_len
     }
 
+    /// Gets the SearchRange corresponding to the ginve kmer
     pub fn get_range_for_kmer(&self, fm_index: &FmIndex, kmer: &str) -> SearchRange {
         debug_assert!(kmer.len() >= self.kmer_len as usize);
 
@@ -83,14 +96,18 @@ impl KmerLookupTable {
         return search_range;
     }
 
+    /// Computes the number of entries the table needs for the given kmer length and alphabet.
+    fn get_num_table_entries(kmer_len: u8, alphabet: SymbolAlphabet) -> usize {
+        (alphabet.cardinality() as usize).pow(kmer_len as u32)
+    }
+
+    /// Populates the table with search ranges. It is recommended to reserve the capacity of the table before calling this method. 
     pub fn populate_table(&mut self, fm_index: &FmIndex) {
         let search_range = SearchRange::new(&fm_index);
         self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
     }
 
-    fn get_num_table_entries(kmer_len: u8, alphabet: SymbolAlphabet) -> usize {
-        (alphabet.cardinality() as usize).pow(kmer_len as u32)
-    }
+    /// Recursive component of populating tables.
     fn populate_table_recursive(
         &mut self,
         fm_index: &FmIndex,
@@ -122,6 +139,8 @@ impl KmerLookupTable {
             );
         }
     }
+
+    /// Returns the default kmer lengths for each alphabet type.
     pub fn default_kmer_len(alphabet: SymbolAlphabet) -> u8 {
         match alphabet {
             SymbolAlphabet::Nucleotide => Self::DEFAULT_KMER_LEN_NUCLEOTIDE,
