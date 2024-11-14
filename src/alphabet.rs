@@ -1,4 +1,5 @@
 ///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
+#[derive(Debug, PartialEq, Eq)]
 pub enum SymbolEncoding {
     Ascii(char),
     Index(u8),
@@ -6,13 +7,14 @@ pub enum SymbolEncoding {
 }
 
 ///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,
 }
 
 ///Implementation of a symbol, from a given alphabet, with a given encoding.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Symbol {
     alphabet: SymbolAlphabet,
     encoding: SymbolEncoding,
@@ -33,7 +35,7 @@ impl Symbol {
     pub fn new_ascii(alphabet: SymbolAlphabet, ascii: char) -> Symbol {
         Symbol {
             alphabet,
-            encoding: SymbolEncoding::Ascii(ascii),
+            encoding: SymbolEncoding::Ascii(ascii.to_ascii_uppercase()),
         }
     }
     ///Creates a new Symbol from a given index into the alphabet
@@ -44,7 +46,7 @@ impl Symbol {
             encoding: SymbolEncoding::Index(index),
         }
     }
-    ///Creates a new Symbol 
+    ///Creates a new Symbol
     pub fn new_bit_vector(alphabet: SymbolAlphabet, bit_vector: u8) -> Symbol {
         Symbol {
             alphabet,
@@ -326,5 +328,52 @@ impl Symbol {
                 }),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Symbol, SymbolAlphabet};
+
+    #[test]
+    fn nucleotide_encoding_transform_test() -> anyhow::Result<()> {
+        for ascii_letter in "acgtnACGTN$".chars() {
+            let alphabet = SymbolAlphabet::Nucleotide;
+            let ascii_symbol = Symbol::new_ascii(alphabet, ascii_letter);
+            assert_eq!(ascii_symbol, ascii_symbol.to_bit_vector().to_ascii());
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_bit_vector().to_index().to_ascii()
+            );
+            assert_eq!(ascii_symbol, ascii_symbol.to_index().to_ascii());
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_index().to_bit_vector().to_ascii()
+            );
+            assert_eq!(ascii_symbol, ascii_symbol.to_ascii());
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn amino_encoding_transform_test() -> anyhow::Result<()> {
+        for ascii_letter in "acdefghiklmnpqrstvwxynACDEFGHIKLMNPQRSTVWXY$".chars() {
+            let alphabet = SymbolAlphabet::Amino;
+            let ascii_symbol = Symbol::new_ascii(alphabet, ascii_letter);
+            assert_eq!(ascii_symbol, ascii_symbol.to_bit_vector().to_ascii());
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_bit_vector().to_index().to_ascii()
+            );
+            assert_eq!(ascii_symbol, ascii_symbol.to_index().to_ascii());
+            assert_eq!(
+                ascii_symbol,
+                ascii_symbol.to_index().to_bit_vector().to_ascii()
+            );
+            assert_eq!(ascii_symbol, ascii_symbol.to_ascii());
+        }
+
+        Ok(())
     }
 }
