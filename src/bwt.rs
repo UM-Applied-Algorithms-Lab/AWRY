@@ -3,13 +3,19 @@ use crate::{
     search::SearchPtr,
     simd_instructions::SimdVec256,
 };
+use aligned_vec::{AVec, ConstAlign};
 
+
+pub const SIMD_ALIGNMENT_BYTES:usize = 32;
+
+///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
 #[derive(Clone)]
 pub struct NucleotideBwtBlock {
     milestones: [u64; Self::NUM_MILESTONES],
     bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
 }
 
+///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
 #[derive(Clone)]
 pub struct AminoBwtBlock {
     milestones: [u64; Self::NUM_MILESTONES],
@@ -20,6 +26,8 @@ impl NucleotideBwtBlock {
     pub const NUM_MILESTONES: usize = 8;
     pub const NUM_BIT_VECTORS: usize = 3;
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
+
+    ///creates a new bwt block, with data zeroed out
     pub fn new() -> Self {
         NucleotideBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
@@ -27,6 +35,7 @@ impl NucleotideBwtBlock {
         }
     }
 
+    ///creates a bwt block from the given milestone and bit-vector data
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
         bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
@@ -37,24 +46,34 @@ impl NucleotideBwtBlock {
         }
     }
 
+    ///sets this block's milestone values using the given vector 
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
+        debug_assert!(values.len() >= Self::NUM_MILESTONES);
+
         for milestone_idx in 0..Self::NUM_MILESTONES {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
 
+    ///gets this block's milestone corresponding to the given symbol.
     #[inline]
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
+
+    /// gets a reference to the milestones array
     pub fn milestones(&self) -> &[u64] {
         &self.milestones
     }
+    /// gets a reference to the bit_vectors array
     pub fn bit_vectors(&self) -> &[SimdVec256] {
         &self.bit_vectors
     }
 
+    /// Gets the result of the occurrence function for the local position in this function.
+    /// The occurrence function uses the milestone value and the masked occurrenc vector to
+    /// determine how many instances of the given character were before this position.
     #[inline]
     pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
         let milestone_count = self.get_milestone(&symbol);
@@ -72,8 +91,6 @@ impl NucleotideBwtBlock {
 
         let popcount = occurrence_vector.masked_popcount(local_query_position);
 
-        //generate the position bitmask
-
         return milestone_count + popcount as u64;
     }
 }
@@ -82,12 +99,16 @@ impl AminoBwtBlock {
     pub const NUM_MILESTONES: usize = 24;
     pub const NUM_BIT_VECTORS: usize = 5;
     pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
+
+    /// create a new bwt block, with data zeroed out
     pub fn new() -> Self {
         AminoBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
             bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
         }
     }
+
+    /// create a new bwt block from the given data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
         bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
@@ -97,24 +118,35 @@ impl AminoBwtBlock {
             bit_vectors,
         }
     }
+
+    /// sets the milestones for this block with the values given.
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         for milestone_idx in 0..Self::NUM_MILESTONES {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
+
+    /// returns the milestone value corresponding to the given symbol
     #[inline]
     pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
 
-    pub fn milestones(&self) -> [u64; Self::NUM_MILESTONES] {
-        self.milestones
+    /// returns a slice view of the milestones for this block
+    pub fn milestones(&self) -> &[u64; Self::NUM_MILESTONES] {
+        &self.milestones
     }
 
+    /// returns a slice view of the bit_vectors for this block
     pub fn bit_vectors(&self) -> &[SimdVec256; Self::NUM_BIT_VECTORS] {
         &self.bit_vectors
     }
+
+
+    /// Gets the result of the occurrence function for the local position in this function.
+    /// The occurrence function uses the milestone value and the masked occurrenc vector to
+    /// determine how many instances of the given character were before this position.
     #[inline]
     pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let milestone_count = self.get_milestone(symbol);
@@ -148,10 +180,12 @@ impl AminoBwtBlock {
         };
 
         let popcount = occurrence_vector.masked_popcount(local_query_position);
+
         return milestone_count + popcount as u64;
     }
 }
 
+/// enum representing a BWT, either as Nucleotide symbols or Amino symbols
 pub enum Bwt {
     Nucleotide(AVec<NucleotideBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
     Amino(AVec<AminoBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
@@ -159,6 +193,8 @@ pub enum Bwt {
 
 impl Bwt {
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
+
+    /// returns how many blocks are present in the bwt 
     pub fn num_bwt_blocks(&self) -> usize {
         match self {
             Bwt::Nucleotide(vec) => vec.len(),
@@ -177,6 +213,7 @@ impl Bwt {
         let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
         let mut encoded_symbol = symbol.bit_vector();
 
+        //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
             if encoded_symbol & 0x1 == 0 {
@@ -196,6 +233,7 @@ impl Bwt {
         }
     }
 
+    /// reconstructs the symbol stored at the given bwt position
     pub fn get_symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
         //find the block, byte, and bit of the data we're setting
         let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
@@ -229,6 +267,7 @@ impl Bwt {
         }
     }
 
+    ///sets the milestone values based on the given counts array
     pub fn set_milestones(&mut self, block_idx: usize, counts: &Vec<u64>) {
         match self {
             Bwt::Nucleotide(vec) => vec[block_idx].set_milestones(counts),
@@ -236,6 +275,7 @@ impl Bwt {
         }
     }
     
+    /// finds the total occurrence value for the given symbol at the specified global position
     pub fn global_occurrence(
         &self,
         pointer_global_position: SearchPtr,
