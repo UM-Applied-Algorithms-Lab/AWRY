@@ -23,7 +23,7 @@ pub struct FmIndex {
     sampled_suffix_array: CompressedSuffixArray,
     /// table with precomputed ranges for the first k substring of a query.
     kmer_lookup_table: KmerLookupTable,
-    
+
     bwt_len: u64,
     version_number: u64,
 }
@@ -148,7 +148,7 @@ impl FmIndex {
         }
 
         //create the kmer lookup table
-        let kmer_lookup_table_len = match args.lookup_table_kmer_len {
+        let lookup_table_kmer_len = match args.lookup_table_kmer_len {
             Some(len) => len,
             None => KmerLookupTable::default_kmer_len(args.alphabet),
         };
@@ -158,13 +158,13 @@ impl FmIndex {
             bwt,
             prefix_sums,
             sampled_suffix_array: compressed_suffix_array,
-            kmer_lookup_table: KmerLookupTable::empty(),
+            kmer_lookup_table: KmerLookupTable::empty(lookup_table_kmer_len, args.alphabet),
             bwt_len,
             version_number: FM_VERSION_NUMBER,
         };
 
         //now that the fm index has been generated, we can populate the kmer lookup table
-        let mut kmer_lookup_table = KmerLookupTable::new(&fm_index, kmer_lookup_table_len);
+        let mut kmer_lookup_table = KmerLookupTable::new(&fm_index, lookup_table_kmer_len);
         kmer_lookup_table.populate_table(&fm_index);
         fm_index.kmer_lookup_table = kmer_lookup_table;
 
