@@ -1,9 +1,9 @@
 [package]
-name = "sufr_bwt"
+name = "AWRY-Index"
 version = "0.0.1"
-description = "Generates a Burrows-Sheeler transform from the sufr suffix array library, and implements the count() function."
+description = "Library for creating FM-indexes from FASTA/FASTQ files."
 license = "BSD-3-Clause"
-repository = "https://github.com/UM-Applied-Algorithms-Lab/sufr_bwt"
+repository = "https://github.com/UM-Applied-Algorithms-Lab/AWRY_Index"
 authors = [
     "Tim Anderson <tim.anderson@umontana.edu"
 ]
