@@ -20,6 +20,6 @@ mod tests {
 
     #[test]
     fn ascii_value_to_char() {
-        assert_eq!(64 as char, 'A');
+        assert_eq!(65 as char, 'A');
     }
 }
