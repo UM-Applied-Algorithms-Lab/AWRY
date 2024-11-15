@@ -153,7 +153,8 @@ impl FmIndex {
 
                 let alphabet = match alphabet_idx{
                     0=>{SymbolAlphabet::Nucleotide},
-                    _=>{SymbolAlphabet::Amino}
+                    1=>{SymbolAlphabet::Amino},
+                    _=>panic!("invalid symbol alphabet , did not match any supported alphabet")
                 };
 
                 let compressed_suffix_array_len = (bwt_len / suffix_array_compression_ratio) as usize;
