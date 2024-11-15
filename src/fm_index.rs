@@ -66,10 +66,8 @@ impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
-        let suffix_array_src = match args.suffix_array_output_src.clone() {
-            Some(src) => src,
-            None => DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned(),
-        };
+        let suffix_array_src = args.suffix_array_output_src.clone().unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
+
         let sufr_create_args = sufr::CreateArgs {
             input: args.input_file_src.to_owned(),
             num_partitions: 16, //this is the default, so okay I guess?
@@ -84,10 +82,7 @@ impl FmIndex {
 
         let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
-        let sa_compression_ratio = match args.suffix_array_compression_ratio {
-            Some(ratio) => ratio,
-            None => Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO,
-        };
+        let sa_compression_ratio = args.suffix_array_compression_ratio.unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
         let mut compressed_suffix_array =
             CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as u64);
 
@@ -148,10 +143,7 @@ impl FmIndex {
         }
 
         //create the kmer lookup table
-        let lookup_table_kmer_len = match args.lookup_table_kmer_len {
-            Some(len) => len,
-            None => KmerLookupTable::default_kmer_len(args.alphabet),
-        };
+        let lookup_table_kmer_len = args.lookup_table_kmer_len.unwrap_or_else(||KmerLookupTable::default_kmer_len(args.alphabet));
 
         //generate  the fm index. This must be done before the kmer lookup table can be populated, so for now just use an empty table
         let mut fm_index = FmIndex {
