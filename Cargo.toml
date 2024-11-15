@@ -12,8 +12,8 @@ edition = "2021"
 [dependencies]
 rayon = "1.10.0"
 anyhow = "1.0.92"
-libsufr = "0.3.0"
-sufr = "0.3.1"
+libsufr = "0.4.0"
+sufr = "0.4.0"
 aligned-vec = "0.6.1"
 aligned = "0.4.2"
 

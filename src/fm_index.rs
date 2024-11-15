@@ -70,7 +70,7 @@ impl FmIndex {
             Some(src) => src,
             None => DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned(),
         };
-        let sufr_create_args = sufr::CreateArgs {
+        let sufr_create_args = libsufr::CreateArgs {
             input: args.input_file_src.to_owned(),
             num_partitions: 16, //this is the default, so okay I guess?
             max_query_len: args.max_query_len,
@@ -82,8 +82,8 @@ impl FmIndex {
         };
         sufr::create(&sufr_create_args)?;
 
-        let suffix_array_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
-        let bwt_len = suffix_array_file.num_suffixes;
+        let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
+        let bwt_len = sufr_file.num_suffixes;
         let sa_compression_ratio = match args.suffix_array_compression_ratio {
             Some(ratio) => ratio,
             None => Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO,
@@ -107,8 +107,8 @@ impl FmIndex {
         let alphabet_cardinality = args.alphabet.cardinality();
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
 
-        let mut suffix_array = suffix_array_file.suffix_array;
-        for (suffix_idx, suffix_array_value) in suffix_array.iter().enumerate() {
+        let mut suffix_array_file_access = sufr_file.suffix_array_file;
+        for (suffix_idx, suffix_array_value) in suffix_array_file_access.iter().enumerate() {
             //generate the sampled suffix array
             if suffix_idx % sa_compression_ratio as usize == 0 {
                 compressed_suffix_array.set_value(
@@ -123,11 +123,11 @@ impl FmIndex {
                     &letter_counts,
                 );
             }
-            suffix_array_file.text[0];
+            sufr_file.text[0];
             // get the letter immediately before the suffix array
             let preceeding_letter_ascii = match suffix_idx {
                 0 => '$',
-                _ => suffix_array_file.text[(suffix_array_value - 1) as usize] as char,
+                _ => sufr_file.text[(suffix_array_value - 1) as usize] as char,
             };
 
             let preceding_symbol =
@@ -309,10 +309,8 @@ impl FmIndex {
             }
 
             //read the sampled suffix array value, and add the number of backsteps taken to find the real position
-            let sequence_position = match self.sampled_suffix_array.get_value(backstep_position as usize){
-                Some(position) => position,
-                None => panic!("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data."),
-            };
+            let sequence_position = self.sampled_suffix_array.get_value(backstep_position as usize).expect("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data.");
+
             string_locations.push(sequence_position + num_backsteps_taken);
         }
 
@@ -348,5 +346,28 @@ impl FmIndex {
         let symbol_prefix_sum = self.prefix_sums[symbol.index() as usize];
         let global_occurrence = self.bwt.global_occurrence(search_pointer, &symbol);
         return symbol_prefix_sum + global_occurrence - 1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    #[test]
+    fn test_nucleotide_index() -> anyhow::Result<()> {
+        let dfam_accession_id = " DF003449806";
+        let nucleotide_fasta_src = format!("{}.fasta", dfam_accession_id);
+
+        if !Path::new(&nucleotide_fasta_src).exists() {
+            let dfam_api_command = format!(
+                "https://dfam.org/api/families/{}/sequence?format=fasta",
+                dfam_accession_id
+            );
+            //download the nucleotide fasta
+            let mut get_response = reqwest::blocking::get(dfam_api_command)
+                .expect("request to download nucleotide fasta failed");
+        }
+
+        Ok(())
     }
 }
