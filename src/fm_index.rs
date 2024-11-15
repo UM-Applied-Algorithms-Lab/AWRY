@@ -70,7 +70,7 @@ impl FmIndex {
             Some(src) => src,
             None => DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned(),
         };
-        let sufr_create_args = libsufr::CreateArgs {
+        let sufr_create_args = sufr::CreateArgs {
             input: args.input_file_src.to_owned(),
             num_partitions: 16, //this is the default, so okay I guess?
             max_query_len: args.max_query_len,
