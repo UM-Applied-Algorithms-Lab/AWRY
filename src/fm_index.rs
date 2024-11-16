@@ -66,7 +66,10 @@ impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
-        let suffix_array_src = args.suffix_array_output_src.clone().unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
+        let suffix_array_src = args
+            .suffix_array_output_src
+            .clone()
+            .unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
 
         let sufr_create_args = sufr::CreateArgs {
             input: args.input_file_src.to_owned(),
@@ -82,7 +85,9 @@ impl FmIndex {
 
         let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
-        let sa_compression_ratio = args.suffix_array_compression_ratio.unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
+        let sa_compression_ratio = args
+            .suffix_array_compression_ratio
+            .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
         let mut compressed_suffix_array =
             CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as u64);
 
@@ -143,7 +148,9 @@ impl FmIndex {
         }
 
         //create the kmer lookup table
-        let lookup_table_kmer_len = args.lookup_table_kmer_len.unwrap_or_else(||KmerLookupTable::default_kmer_len(args.alphabet));
+        let lookup_table_kmer_len = args
+            .lookup_table_kmer_len
+            .unwrap_or_else(|| KmerLookupTable::default_kmer_len(args.alphabet));
 
         //generate  the fm index. This must be done before the kmer lookup table can be populated, so for now just use an empty table
         let mut fm_index = FmIndex {
@@ -343,23 +350,251 @@ impl FmIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{
+        collections::HashMap,
+        io::Write,
+        path::Path,
+    };
+
+    use rand::{
+        rngs::StdRng,
+        Rng, SeedableRng,
+    };
+
+    use crate::alphabet::SymbolAlphabet;
+
+    use super::{FmBuildArgs, FmIndex};
+
+    fn compare_index_to_reference(
+        fm_index: &FmIndex,
+        suffix_array_file_src: &str,
+        test_kmer_len: usize,
+    ) {
+        let mut kmer_map: HashMap<String, Vec<usize>> = HashMap::new();
+
+        let sufr_file = libsufr::SufrFile::<u64>::read(&suffix_array_file_src)
+            .expect("Could not read suffix array file");
+
+        for text_position in 00..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
+            let data_slice = &sufr_file.text[text_position..text_position + test_kmer_len];
+            let kmer_string = String::from_utf8(data_slice.to_vec())
+                .expect("unable to parse kmer ascii values to string");
+
+            kmer_map
+                .entry(kmer_string)
+                .or_insert_with(Vec::new)
+                .push(text_position);
+        }
+
+        //check the count and locate functions for correctness against all kmers in our map
+
+        for key in kmer_map.keys() {
+            let count = fm_index.count_string(key);
+            let kmer_locations = kmer_map.get(key).unwrap();
+            assert_eq!(
+                count as usize,
+                kmer_locations.len(),
+                "count returned by fm index did not match count in the testing kmer map"
+            );
+
+            let mut locate_result = fm_index.locate_string(key);
+            locate_result.sort();
+            let mut reference_positions = kmer_locations.clone();
+            reference_positions.sort();
+
+            assert_eq!(
+                locate_result.len(),
+                reference_positions.len(),
+                "lengths of fm locate results and testing comparison results did not match"
+            );
+
+            for i in 0..locate_result.len() {
+                assert_eq!(locate_result[i] as usize , reference_positions[i], "position did not match in lists between locate results and reference positions");
+            }
+        }
+    }
 
     #[test]
     fn test_nucleotide_index() -> anyhow::Result<()> {
-        let dfam_accession_id = " DF003449806";
-        let nucleotide_fasta_src = format!("{}.fasta", dfam_accession_id);
+        const TEST_KMER_LEN: usize = 24;
+        const FASTA_SRC: &str = "test_nucleotide.fasta";
+        const FASTA_LINE_LEN: u8 = 80;
+        const FASTA_SEQ_LEN: usize = 100001;
+        const NUCLEOTIDE_FASTA_SRC:&str = "test_nucleotide.fasta";
+        const SUFFIX_ARRAY_FILE_SRC:&str = "test_nucleotide.sufr";
+        const FM_INDEX_SRC:&str = "test_nucleotide.awry";
 
-        if !Path::new(&nucleotide_fasta_src).exists() {
-            let dfam_api_command = format!(
-                "https://dfam.org/api/families/{}/sequence?format=fasta",
-                dfam_accession_id
-            );
-            //download the nucleotide fasta
-            let mut get_response = reqwest::blocking::get(dfam_api_command)
-                .expect("request to download nucleotide fasta failed");
-        }
+        gen_rand_nucleotide_file(&Path::new(FASTA_SRC), FASTA_LINE_LEN, FASTA_SEQ_LEN)
+            .expect("unable to generate random nucleotide fasta");
+
+        //create the fm index
+        let fm_index = FmIndex::new(&FmBuildArgs {
+            input_file_src: NUCLEOTIDE_FASTA_SRC.to_owned(),
+            suffix_array_output_src: Some(SUFFIX_ARRAY_FILE_SRC.to_owned()),
+            suffix_array_compression_ratio: None,
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            threads: None,
+        })
+        .expect("unable to build fm index");
+
+        //save the fm index to file
+
+        fm_index
+            .save(&Path::new(&FM_INDEX_SRC))
+            .expect("unable to save fm index to file");
+
+        //create map of kmer->Vec<position>
+
+        compare_index_to_reference(&fm_index, &SUFFIX_ARRAY_FILE_SRC, TEST_KMER_LEN);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_amino_index() -> anyhow::Result<()> {
+        //I can't find a good API to get protein sequences, so we're just going to randomly generate a protein fasta
+
+        const TEST_KMER_LEN: usize = 8;
+        const FASTA_LINE_LEN: u8 = 80;
+        const FASTA_LEN: usize = 300;
+        let fasta_src = "amino.fasta".to_owned();
+        let suffix_array_file_src = "amino.sufr".to_owned();
+        let fm_index_src = "amino.awry".to_owned();
+
+        if !Path::new(&fasta_src).exists() {
+            gen_rand_amino_file(&Path::new(&fasta_src), FASTA_LINE_LEN, FASTA_LEN)
+                .expect("error when generating the amino fasta file");
+        }
+
+        //create the fm index
+        let fm_index = FmIndex::new(&FmBuildArgs {
+            input_file_src: fasta_src.clone(),
+            suffix_array_output_src: Some(suffix_array_file_src.clone()),
+            suffix_array_compression_ratio: None,
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Amino,
+            max_query_len: None,
+            threads: None,
+        })
+        .expect("unable to build fm index");
+
+        //save the fm index to file
+
+        fm_index
+            .save(&Path::new(&fm_index_src))
+            .expect("unable to save fm index to file");
+
+        //create map of kmer->Vec<position>
+
+        compare_index_to_reference(&fm_index, &suffix_array_file_src, TEST_KMER_LEN);
+
+        Ok(())
+    }
+
+    fn gen_rand_nucleotide_file(
+        fasta_src: &Path,
+        line_len: u8,
+        sequence_len: usize,
+    ) -> anyhow::Result<()> {
+        let mut rng = StdRng::seed_from_u64(0);
+        rng.gen_range(0..5);
+        let mut fasta_file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .read(false)
+            .open(fasta_src)
+            .expect("unable to open nucleotide fasta file for writing");
+
+        fasta_file.write(">randomly_generated_fasta\n".to_owned().as_bytes())?;
+
+        let mut letters_remaining = sequence_len;
+        while letters_remaining >= line_len as usize {
+            for _ in 0..line_len {
+                fasta_file.write(index_to_nucleotide(rng.gen_range(0..21)).as_bytes())?;
+            }
+            fasta_file.write("\n".to_owned().as_bytes())?;
+            letters_remaining -= line_len as usize;
+        }
+
+        //write the last line
+        for _ in 0..letters_remaining {
+            fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+        }
+        fasta_file.write("\n".to_owned().as_bytes())?;
+
+        Ok(())
+    }
+
+    fn gen_rand_amino_file(
+        fasta_src: &Path,
+        line_len: u8,
+        sequence_len: usize,
+    ) -> anyhow::Result<()> {
+        let mut rng = StdRng::seed_from_u64(999);
+        rng.gen_range(0..21);
+        let mut fasta_file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .read(false)
+            .open(fasta_src)
+            .expect("unable to open amino fasta file for writing");
+
+        fasta_file.write(">randomly_generated_fasta\n".to_owned().as_bytes())?;
+
+        let mut letters_remaining = sequence_len;
+        while letters_remaining >= line_len as usize {
+            for _ in 0..line_len {
+                fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+            }
+            fasta_file.write("\n".to_owned().as_bytes())?;
+            letters_remaining -= line_len as usize;
+        }
+
+        //write the last line
+        for _ in 0..letters_remaining {
+            fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+        }
+        fasta_file.write("\n".to_owned().as_bytes())?;
+
+        Ok(())
+    }
+
+    fn index_to_nucleotide(index: u8) -> String {
+        match index {
+            0 => "A",
+            1 => "C",
+            2 => "G",
+            3 => "T",
+            _ => "N",
+        }
+        .to_owned()
+    }
+    fn index_to_amino(index: u8) -> String {
+        match index {
+            0 => "A",
+            1 => "C",
+            2 => "D",
+            3 => "E",
+            4 => "F",
+            5 => "G",
+            6 => "H",
+            7 => "I",
+            8 => "K",
+            9 => "L",
+            10 => "M",
+            11 => "N",
+            12 => "P",
+            13 => "Q",
+            14 => "R",
+            15 => "S",
+            16 => "T",
+            17 => "V",
+            18 => "W",
+            19 => "Y",
+            _ => "X",
+        }
+        .to_owned()
     }
 }
