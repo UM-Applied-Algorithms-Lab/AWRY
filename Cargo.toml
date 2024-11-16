@@ -1,5 +1,5 @@
 [package]
-name = "AWRY-Index"
+name = "awri-index"
 version = "0.0.1"
 description = "Library for creating FM-indexes from FASTA/FASTQ files."
 license = "BSD-3-Clause"
@@ -16,6 +16,9 @@ libsufr = "0.4.0"
 sufr = "0.4.0"
 aligned-vec = "0.6.1"
 aligned = "0.4.2"
+reqwest = {version = "0.12.9",features = ["blocking"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+rand = "0.8.5"
 
 [lib]
 crate-type = ["lib"]
