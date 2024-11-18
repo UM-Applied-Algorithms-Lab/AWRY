@@ -18,9 +18,6 @@ impl AlignedVectorArray {
     pub fn new() -> Self {
         AlignedVectorArray { data: [0; 4] }
     }
-    pub fn from_array(data: [u64; 4]) {
-        AlignedVectorArray { data }
-    }
 }
 
 #[cfg(target_arch = "x86_64")]
