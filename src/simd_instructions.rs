@@ -91,9 +91,9 @@ impl SimdVec256 {
         let mut popcount = 0;
         unsafe {
             popcount += (_mm256_extract_epi64::<0>(self.data) as u64 & bitmasks[0]).count_ones();
-            popcount += (_mm256_extract_epi64::<1>(self.data) as u64 & bitmasks[0]).count_ones();
-            popcount += (_mm256_extract_epi64::<2>(self.data) as u64 & bitmasks[0]).count_ones();
-            popcount += (_mm256_extract_epi64::<3>(self.data) as u64 & bitmasks[0]).count_ones();
+            popcount += (_mm256_extract_epi64::<1>(self.data) as u64 & bitmasks[1]).count_ones();
+            popcount += (_mm256_extract_epi64::<2>(self.data) as u64 & bitmasks[2]).count_ones();
+            popcount += (_mm256_extract_epi64::<3>(self.data) as u64 & bitmasks[3]).count_ones();
         }
 
         return popcount;
