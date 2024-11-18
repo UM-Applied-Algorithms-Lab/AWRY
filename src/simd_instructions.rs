@@ -15,8 +15,11 @@ pub struct AlignedVectorArray {
     data: [u64; 4],
 }
 impl AlignedVectorArray {
-    fn new() -> Self {
+    pub fn new() -> Self {
         AlignedVectorArray { data: [0; 4] }
+    }
+    pub fn from_array(data: [u64; 4]) {
+        AlignedVectorArray { data }
     }
 }
 
