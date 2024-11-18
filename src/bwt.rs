@@ -5,8 +5,7 @@ use crate::{
 };
 use aligned_vec::{AVec, ConstAlign};
 
-
-pub const SIMD_ALIGNMENT_BYTES:usize = 32;
+pub const SIMD_ALIGNMENT_BYTES: usize = 32;
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
 #[derive(Clone)]
@@ -49,9 +48,9 @@ impl NucleotideBwtBlock {
     ///sets this block's milestone values using the given vector 
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
-        debug_assert!(values.len() >= Self::NUM_MILESTONES);
+        debug_assert!(values.len() >= SymbolAlphabet::Nucleotide.cardinality() as usize);
 
-        for milestone_idx in 0..Self::NUM_MILESTONES {
+        for milestone_idx in 0..SymbolAlphabet::Nucleotide.cardinality() as usize {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
@@ -122,7 +121,9 @@ impl AminoBwtBlock {
     /// sets the milestones for this block with the values given.
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
-        for milestone_idx in 0..Self::NUM_MILESTONES {
+        debug_assert!(values.len() >= SymbolAlphabet::Amino.cardinality() as usize);
+        
+        for milestone_idx in 0..SymbolAlphabet::Amino.cardinality() as usize {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
     }
@@ -142,7 +143,6 @@ impl AminoBwtBlock {
     pub fn bit_vectors(&self) -> &[SimdVec256; Self::NUM_BIT_VECTORS] {
         &self.bit_vectors
     }
-
 
     /// Gets the result of the occurrence function for the local position in this function.
     /// The occurrence function uses the milestone value and the masked occurrenc vector to
