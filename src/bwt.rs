@@ -64,7 +64,7 @@ impl NucleotideBwtBlock {
         //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
-            if encoded_symbol & 0x1 == 0 {
+            if encoded_symbol & 0x1 == 1 {
                 self.bit_vectors[bit_vector_idx] = self.bit_vectors[bit_vector_idx].or(&vector_bitmask);
             }
             encoded_symbol >>= 1;
@@ -164,7 +164,7 @@ impl AminoBwtBlock {
         //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
-            if encoded_symbol & 0x1 == 0 {
+            if encoded_symbol & 0x1 == 1 {
                 self.bit_vectors[bit_vector_idx] = self.bit_vectors[bit_vector_idx].or(&vector_bitmask);
             }
             encoded_symbol >>= 1;
