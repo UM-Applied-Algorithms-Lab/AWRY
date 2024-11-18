@@ -46,3 +46,36 @@ impl SearchRange {
         self.start_ptr..(self.end_ptr + 1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::search::SearchRange;
+
+    #[test]
+    fn search_range_zero_test() {
+        assert_eq!(
+            SearchRange::zero().len(),
+            0,
+            "empty search range was not length 0"
+        );
+    }
+    #[test]
+    fn search_range_empty_test() {
+        assert_eq!(
+            SearchRange {
+                start_ptr: 1,
+                end_ptr: 0
+            }
+            .len(),
+            0, "search range with sp > ep did not return length 0"
+        );
+        assert_eq!(
+            SearchRange {
+                start_ptr: 999,
+                end_ptr: 0
+            }
+            .len(),
+            0, "search range with sp > ep did not return length 0"
+        );
+    }
+}
