@@ -72,7 +72,7 @@ impl NucleotideBwtBlock {
         }
     }
 
-    ///sets this block's milestone values using the given vector 
+    ///sets this block's milestone values using the given vector
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Nucleotide.cardinality() as usize);
@@ -177,7 +177,7 @@ impl AminoBwtBlock {
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Amino.cardinality() as usize);
-        
+
         for milestone_idx in 0..SymbolAlphabet::Amino.cardinality() as usize {
             self.milestones[milestone_idx] = values[milestone_idx];
         }
@@ -249,7 +249,7 @@ pub enum Bwt {
 impl Bwt {
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
 
-    /// returns how many blocks are present in the bwt 
+    /// returns how many blocks are present in the bwt
     pub fn num_bwt_blocks(&self) -> usize {
         match self {
             Bwt::Nucleotide(vec) => vec.len(),
@@ -311,7 +311,7 @@ impl Bwt {
             Bwt::Amino(vec) => vec[block_idx].set_milestones(counts),
         }
     }
-    
+
     /// finds the total occurrence value for the given symbol at the specified global position
     pub fn global_occurrence(
         &self,
@@ -331,4 +331,159 @@ impl Bwt {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use rand::{Rng, SeedableRng};
+
+    use crate::{alphabet::{Symbol, SymbolAlphabet}, simd_instructions::SimdVec256};
+    use super::{AminoBwtBlock, NucleotideBwtBlock};
+
+    #[test]
+    fn mock_nucleotide_empty_bwt_block_test() {
+        let mock_bwt_block = NucleotideBwtBlock::from_data(
+            [
+                1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
+            ],
+            [SimdVec256::zero();3],
+        );
+
+        //make sure that with all zeros, each position and each symbol just returns the milestone
+        for symbol_idx in 1..6 {
+            for position in 0..256 {
+                let occurrence_count = mock_bwt_block.global_occurrence(
+                    position,
+                    &Symbol::new_index(crate::alphabet::SymbolAlphabet::Nucleotide, symbol_idx),
+                );
+
+                assert_eq!(occurrence_count, mock_bwt_block.milestones[symbol_idx as usize], 
+                    "nucleotide occurrence did not exactly match milestone in empty bwt block, count for sym {}, pos {}.", symbol_idx, position);
+            }
+        }
+    }
+
+    #[test]
+    fn mock_nucleotide_preset_bwt_block_test(){
+        //set up the comparison data
+        let mut mock_bwt_block = NucleotideBwtBlock::from_data(
+            [
+                1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
+            ],
+            [SimdVec256::zero();3],
+            
+        );
+        let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(2);
+
+        let mut counts:HashMap<(u64,u8), u64> = HashMap::new();
+        let mut current_counts:Vec<u64> = mock_bwt_block.milestones.to_vec();
+        for position in 0..super::Bwt::NUM_SYMBOLS_PER_BLOCK{
+            let symbol_idx = seeded_rng.gen_range(0..SymbolAlphabet::Nucleotide.cardinality()); 
+            let symbol = &crate::alphabet::Symbol::new_index(SymbolAlphabet::Nucleotide, symbol_idx as u8);
+
+            mock_bwt_block.set_symbol_at(symbol, position);
+
+            //increment the current counts
+            current_counts[symbol_idx as usize] += 1;
+
+            //set the full counts table
+            for idx in 0..SymbolAlphabet::Nucleotide.cardinality(){
+                counts.insert((position, idx as u8), current_counts[idx as usize]);
+            }
+        }
+
+
+        //check the global_occurrence results against the predicted results
+        //make sure that with all zeros, each position and each symbol just returns the milestone
+        for symbol_idx in 1..SymbolAlphabet::Nucleotide.cardinality() {
+            for position in 0..256 {
+                let occurrence_count = mock_bwt_block.global_occurrence(
+                    position,
+                    &Symbol::new_index(crate::alphabet::SymbolAlphabet::Nucleotide, symbol_idx),
+                );
+                let expected_value = match counts.get(&(position, symbol_idx)){
+                    Some(val) => val,
+                    None => {
+                        println!("failed to get value from hash table at pos {} idx {}", position, symbol_idx);
+                        panic!();
+                    },
+                };
+                assert_eq!(occurrence_count, *expected_value, 
+                    "nucleotide occurrence did not exactly match milestone in randomized bwt block, count for sym {}, pos {}.", symbol_idx, position);
+            }
+        }
+    }
+
+    #[test]
+    fn mock_amino_empty_bwt_block_test() {
+        let mock_bwt_block = AminoBwtBlock::from_data(
+            [
+                1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
+                9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
+                17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
+            ],
+            [SimdVec256::zero();5],
+        );
+
+        //make sure that with all zeros, each position and each symbol just returns the milestone
+        for symbol_idx in 1..6 {
+            for position in 0..256 {
+                let occurrence_count = mock_bwt_block.global_occurrence(
+                    position,
+                    &Symbol::new_index(crate::alphabet::SymbolAlphabet::Amino, symbol_idx),
+                );
+
+                assert_eq!(occurrence_count, mock_bwt_block.milestones[symbol_idx as usize], 
+                    "amino occurrence did not exactly match milestone in empty bwt block, count for sym {}, pos {}.", symbol_idx, position);
+            }
+        }
+    }
+
+    #[test]
+    fn mock_amino_preset_bwt_block_test(){
+        //set up the comparison data
+        let mut mock_bwt_block = AminoBwtBlock::from_data(
+            [
+                1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
+                9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
+                17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
+            ],
+            [SimdVec256::zero();5],
+        );
+
+        let mut counts:HashMap<(u64,u8), u64> = HashMap::new();
+        let mut current_counts:Vec<u64> = mock_bwt_block.milestones.to_vec();
+        let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(0);
+        for position in 0..super::Bwt::NUM_SYMBOLS_PER_BLOCK{
+            let symbol_idx = seeded_rng.gen_range(0..SymbolAlphabet::Amino.cardinality()); 
+            let symbol = &crate::alphabet::Symbol::new_index(SymbolAlphabet::Amino, symbol_idx as u8);
+
+            mock_bwt_block.set_symbol_at(symbol, position);
+
+            //increment the current counts
+            current_counts[symbol_idx as usize] += 1;
+
+            //set the full counts table
+            for idx in 0..SymbolAlphabet::Amino.cardinality(){
+                counts.insert((position, idx), current_counts[idx as usize]);
+            }
+        }
+
+
+        //check the global_occurrence results against the predicted results
+        //make sure that with all zeros, each position and each symbol just returns the milestone
+        for symbol_idx in 1..SymbolAlphabet::Amino.cardinality() {
+            for position in 0..256 {
+                let occurrence_count = mock_bwt_block.global_occurrence(
+                    position,
+                    &Symbol::new_index(crate::alphabet::SymbolAlphabet::Amino, symbol_idx),
+                );
+                let expected_value = counts.get(&(position, symbol_idx)).expect("failed to get value from hash table");
+                assert_eq!(occurrence_count, *expected_value, 
+                    "amino occurrence did not exactly match milestone in randomized bwt block, count for sym {}, pos {}.", symbol_idx, position);
+            }
+        }
+    }
+
 }
