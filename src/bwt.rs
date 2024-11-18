@@ -208,7 +208,7 @@ impl AminoBwtBlock {
         let vecs = &self.bit_vectors;
         let occurrence_vector = match symbol.index() {
             1 => vecs[3].and(&vecs[4].andnot(&vecs[2])), //A:    0b01100
-            2 => vecs[3].andnot(&vecs[2]).and(&vecs[1].andnot(&vecs[0])), //C:    0b10111
+            2 => vecs[3].andnot(&vecs[2]).and(&vecs[1].and(&vecs[0])), //C:    0b10111
             3 => vecs[1].and(&vecs[4].andnot(&vecs[0])), //D:    0b00011
             4 => vecs[4].andnot(&vecs[2].and(&vecs[1])), //E: 0b00110
             5 => vecs[0].andnot(&vecs[3]).and(&vecs[2].and(&vecs[1])), //F:    0b11110
@@ -454,7 +454,7 @@ mod tests {
 
         let mut counts:HashMap<(u64,u8), u64> = HashMap::new();
         let mut current_counts:Vec<u64> = mock_bwt_block.milestones.to_vec();
-        let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(0);
+        let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(6);
         for position in 0..super::Bwt::NUM_SYMBOLS_PER_BLOCK{
             let symbol_idx = seeded_rng.gen_range(0..SymbolAlphabet::Amino.cardinality()); 
             let symbol = &crate::alphabet::Symbol::new_index(SymbolAlphabet::Amino, symbol_idx as u8);
