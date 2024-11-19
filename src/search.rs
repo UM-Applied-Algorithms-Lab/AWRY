@@ -28,22 +28,22 @@ impl SearchRange {
     }
 
     ///returns true if the search range doesn't represent any elements.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         return self.start_ptr > self.end_ptr;
     }
 
     ///gets the number of elements represented by the search range
     pub fn len(&self) -> SearchPtr {
-        if self.start_ptr > self.end_ptr {
-            0
-        } else {
-            self.end_ptr - self.start_ptr + 1
+        match self.is_empty() {
+            true => 0,
+            false => self.end_ptr - self.start_ptr + 1,
         }
     }
 
     /// Returns an interator over the BWT positions corresponding to this search range
     pub fn range_iter(&self) -> core::ops::Range<SearchPtr> {
-        match self.is_empty(){
+        match self.is_empty() {
             true => 0..0,
             false => self.start_ptr..(self.end_ptr + 1),
         }
@@ -92,16 +92,24 @@ mod tests {
             end_ptr: 0,
         };
         let range_iter = search_range.range_iter();
-        assert_eq!(range_iter.count(), 0, "search range did not match expected for valid range");
+        assert_eq!(
+            range_iter.count(),
+            0,
+            "search range did not match expected for valid range"
+        );
     }
 
     #[test]
-    fn range_check_empty_search_range(){
+    fn range_check_empty_search_range() {
         let search_range = SearchRange {
             start_ptr: 500,
             end_ptr: 499,
         };
         let range_iter = search_range.range_iter();
-        assert_eq!(range_iter.count(), 0, "count of empty range iterator was not zero");
+        assert_eq!(
+            range_iter.count(),
+            0,
+            "count of empty range iterator was not zero"
+        );
     }
 }
