@@ -43,7 +43,10 @@ impl SearchRange {
 
     /// Returns an interator over the BWT positions corresponding to this search range
     pub fn range_iter(&self) -> core::ops::Range<SearchPtr> {
-        self.start_ptr..(self.end_ptr + 1)
+        match self.is_empty(){
+            true => 0..0,
+            false => self.start_ptr..(self.end_ptr + 1),
+        }
     }
 }
 
