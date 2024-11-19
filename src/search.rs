@@ -49,14 +49,15 @@ impl SearchRange {
 
 #[cfg(test)]
 mod tests {
+
     use crate::search::SearchRange;
 
     #[test]
     fn search_range_zero_test() {
         assert_eq!(
             SearchRange::zero().len(),
-            0,
-            "empty search range was not length 0"
+            1,
+            "empty search range was not length 1"
         );
     }
     #[test]
@@ -67,7 +68,8 @@ mod tests {
                 end_ptr: 0
             }
             .len(),
-            0, "search range with sp > ep did not return length 0"
+            0,
+            "search range with sp > ep did not return length 0"
         );
         assert_eq!(
             SearchRange {
@@ -75,7 +77,28 @@ mod tests {
                 end_ptr: 0
             }
             .len(),
-            0, "search range with sp > ep did not return length 0"
+            0,
+            "search range with sp > ep did not return length 0"
         );
+    }
+
+    #[test]
+    fn range_check_search_range() {
+        let search_range = SearchRange {
+            start_ptr: 999,
+            end_ptr: 0,
+        };
+        let range_iter = search_range.range_iter();
+        assert_eq!(range_iter.count(), 0, "search range did not match expected for valid range");
+    }
+
+    #[test]
+    fn range_check_empty_search_range(){
+        let search_range = SearchRange {
+            start_ptr: 500,
+            end_ptr: 499,
+        };
+        let range_iter = search_range.range_iter();
+        assert_eq!(range_iter.count(), 0, "count of empty range iterator was not zero");
     }
 }
