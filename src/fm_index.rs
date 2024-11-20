@@ -289,12 +289,7 @@ impl FmIndex {
 
     /// Finds the count for the given query.
     pub fn count_string(&self, query: &String) -> u64 {
-        let search_range = self.get_search_range_for_string(query);
-        if search_range.start_ptr > search_range.end_ptr {
-            0
-        } else {
-            (search_range.end_ptr - search_range.start_ptr) + 1
-        }
+        self.get_search_range_for_string(query).len()
     }
 
     /// Finds the locations in the original text of all isntances of the given query.
