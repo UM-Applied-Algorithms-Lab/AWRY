@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use aligned_vec::avec;
+use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
@@ -37,7 +38,6 @@ pub struct FmBuildArgs {
     lookup_table_kmer_len: Option<u8>,
     alphabet: SymbolAlphabet,
     max_query_len: Option<usize>,
-    threads: Option<usize>,
 }
 
 impl FmBuildArgs {
@@ -48,7 +48,6 @@ impl FmBuildArgs {
         lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
         max_query_len: Option<usize>,
-        threads: Option<usize>,
     ) -> Self {
         return FmBuildArgs {
             input_file_src,
@@ -57,7 +56,6 @@ impl FmBuildArgs {
             lookup_table_kmer_len,
             alphabet,
             max_query_len,
-            threads,
         };
     }
 }
@@ -71,17 +69,23 @@ impl FmIndex {
             .clone()
             .unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
 
-        let sufr_create_args = sufr::CreateArgs {
-            input: args.input_file_src.to_owned(),
-            num_partitions: 16, //this is the default, so okay I guess?
+        let sequence_delimiter = b'N';
+        let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
+        let sufr_builder_args = SufrBuilderArgs{
+            text: seq_data.seq,
             max_query_len: args.max_query_len,
-            threads: args.threads,
-            output: Some(suffix_array_src.clone()),
             is_dna: args.alphabet == SymbolAlphabet::Nucleotide,
             allow_ambiguity: true,
             ignore_softmask: true,
+            sequence_starts: seq_data.start_positions.into_iter().collect(),
+            headers: seq_data.headers,
+            num_partitions: 2,  //I have no idea why this is 2
+            sequence_delimiter,
         };
-        sufr::create(&sufr_create_args)?;
+
+        let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
+        sufr_builder.write(&suffix_array_src)?;
+
 
         let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
@@ -435,7 +439,6 @@ mod tests {
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
             max_query_len: None,
-            threads: None,
         })
         .expect("unable to build fm index");
 
@@ -476,7 +479,6 @@ mod tests {
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Amino,
             max_query_len: None,
-            threads: None,
         })
         .expect("unable to build fm index");
 
@@ -499,7 +501,6 @@ mod tests {
         sequence_len: usize,
     ) -> anyhow::Result<()> {
         let mut rng = StdRng::seed_from_u64(0);
-        rng.gen_range(0..5);
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -512,7 +513,7 @@ mod tests {
         let mut letters_remaining = sequence_len;
         while letters_remaining >= line_len as usize {
             for _ in 0..line_len {
-                fasta_file.write(index_to_nucleotide(rng.gen_range(0..21)).as_bytes())?;
+                fasta_file.write(index_to_nucleotide(rng.gen_range(0..5)).as_bytes())?;
             }
             fasta_file.write("\n".to_owned().as_bytes())?;
             letters_remaining -= line_len as usize;
