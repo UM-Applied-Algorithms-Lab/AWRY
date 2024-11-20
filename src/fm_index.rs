@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use aligned_vec::avec;
-use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
+use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs, SufrFile};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
@@ -129,7 +129,7 @@ impl FmIndex {
             }
             sufr_file.text[0];
             // get the letter immediately before the suffix array
-            let preceeding_letter_ascii = match suffix_idx {
+            let preceeding_letter_ascii = match suffix_array_value {
                 0 => '$',
                 _ => sufr_file.text[(suffix_array_value - 1) as usize] as char,
             };
