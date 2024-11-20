@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use aligned_vec::avec;
-use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs, SufrFile};
+use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
