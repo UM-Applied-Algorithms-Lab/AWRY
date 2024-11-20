@@ -38,6 +38,7 @@ pub struct FmBuildArgs {
     lookup_table_kmer_len: Option<u8>,
     alphabet: SymbolAlphabet,
     max_query_len: Option<usize>,
+    remove_intermediate_suffix_array_file: bool,
 }
 
 impl FmBuildArgs {
@@ -48,6 +49,7 @@ impl FmBuildArgs {
         lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
         max_query_len: Option<usize>,
+        remove_intermediate_suffix_array_file: bool,
     ) -> Self {
         return FmBuildArgs {
             input_file_src,
@@ -56,6 +58,7 @@ impl FmBuildArgs {
             lookup_table_kmer_len,
             alphabet,
             max_query_len,
+            remove_intermediate_suffix_array_file,
         };
     }
 }
@@ -71,7 +74,7 @@ impl FmIndex {
 
         let sequence_delimiter = b'N';
         let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
-        let sufr_builder_args = SufrBuilderArgs{
+        let sufr_builder_args = SufrBuilderArgs {
             text: seq_data.seq,
             max_query_len: args.max_query_len,
             is_dna: args.alphabet == SymbolAlphabet::Nucleotide,
@@ -79,13 +82,12 @@ impl FmIndex {
             ignore_softmask: true,
             sequence_starts: seq_data.start_positions.into_iter().collect(),
             headers: seq_data.headers,
-            num_partitions: 2,  //I have no idea why this is 2
+            num_partitions: 2, //I have no idea why this is 2
             sequence_delimiter,
         };
 
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
         sufr_builder.write(&suffix_array_src)?;
-
 
         let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
@@ -171,8 +173,9 @@ impl FmIndex {
         kmer_lookup_table.populate_table(&fm_index);
         fm_index.kmer_lookup_table = kmer_lookup_table;
 
-        //remove the temp uncompressed suffix array file, since we no longer need it.
+        if args.remove_intermediate_suffix_array_file {
         std::fs::remove_file(Path::new(&suffix_array_src))?;
+        }
 
         return Ok(fm_index);
     }
@@ -439,6 +442,7 @@ mod tests {
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
             max_query_len: None,
+            remove_intermediate_suffix_array_file: false,
         })
         .expect("unable to build fm index");
 
@@ -479,6 +483,7 @@ mod tests {
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Amino,
             max_query_len: None,
+            remove_intermediate_suffix_array_file: false,
         })
         .expect("unable to build fm index");
 
