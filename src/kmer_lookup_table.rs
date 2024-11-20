@@ -17,7 +17,7 @@ pub struct KmerLookupTable {
 }
 
 impl KmerLookupTable {
-    const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 14;
+    const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 12;
     const DEFAULT_KMER_LEN_AMINO: u8 = 5;
 
     /// Creates and populates a new table for all kmers of the given length
