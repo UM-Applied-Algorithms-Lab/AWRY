@@ -26,10 +26,9 @@ impl KmerLookupTable {
         let kmer_table_len = Self::get_num_table_entries(kmer_len, alphabet);
 
         let mut lookup_table = KmerLookupTable {
-            range_table: Vec::new(),
+            range_table: vec![SearchRange::zero(); kmer_table_len],
             kmer_len,
         };
-        lookup_table.range_table.reserve(kmer_table_len as usize);
 
         lookup_table.populate_table(fm_index);
 
