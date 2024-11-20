@@ -28,6 +28,11 @@ impl SymbolAlphabet {
             SymbolAlphabet::Amino => 22,
         }
     }
+    /// Returns the number of encoding symbols (i.e., non-ambiguity Nucleotide or Amino codes) in the alphabet.
+    /// This is used for building and using the kmer lookup table
+    pub fn num_encoding_symbols(&self) -> u8 {
+        self.cardinality() - 2
+    }
 }
 
 impl Symbol {

@@ -42,9 +42,10 @@ impl KmerLookupTable {
             range_table: Vec::new(),
             kmer_len: 0,
         };
+        let table_size = Self::get_num_table_entries(kmer_len, alphabet);
         table
             .range_table
-            .reserve(Self::get_num_table_entries(kmer_len, alphabet));
+            .reserve(table_size);
 
         return table;
     }
@@ -98,7 +99,10 @@ impl KmerLookupTable {
 
     /// Computes the number of entries the table needs for the given kmer length and alphabet.
     fn get_num_table_entries(kmer_len: u8, alphabet: SymbolAlphabet) -> usize {
-        (alphabet.cardinality() as usize).pow(kmer_len as u32)
+        let cardinality = alphabet.num_encoding_symbols() as usize;
+        let num_entries = cardinality.pow(kmer_len as u32);
+
+        return num_entries;        
     }
 
     /// Populates the table with search ranges. It is recommended to reserve the capacity of the table before calling this method. 
