@@ -127,13 +127,13 @@ impl KmerLookupTable {
         }
 
         let alphabet = fm_index.alphabet();
-        let cardinality = alphabet.cardinality();
+        let encoding_symbol_idx_range = 1..alphabet.num_encoding_symbols();
 
-        for idx in 0..cardinality {
+        for idx in encoding_symbol_idx_range{
             let new_search_range = fm_index
                 .update_range_with_symbol(search_range.clone(), Symbol::new_index(alphabet, idx));
             let new_kmer_idx = current_kmer_idx + (idx as usize * letter_multiplier);
-            let new_letter_multiplier = letter_multiplier * cardinality as usize;
+            let new_letter_multiplier = letter_multiplier * alphabet.num_encoding_symbols() as usize;
             self.populate_table_recursive(
                 fm_index,
                 &new_search_range,
