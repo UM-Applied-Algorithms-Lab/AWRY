@@ -326,7 +326,8 @@ impl FmIndex {
     ) -> SearchRange {
         let query_symbol_idx = query_symbol.index() as usize;
         let letter_prefix_sum = self.prefix_sums[query_symbol_idx];
-        let new_start_ptr = self
+        let new_start_ptr = letter_prefix_sum
+            + self
             .bwt
             .global_occurrence(search_range.start_ptr, &query_symbol);
         let new_end_ptr = letter_prefix_sum
