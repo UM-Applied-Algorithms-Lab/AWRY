@@ -123,9 +123,9 @@ impl FmIndex {
                 );
             }
             //set the block milestones, if necessary
-            if suffix_array_value % Bwt::NUM_SYMBOLS_PER_BLOCK == 0 {
+            if suffix_idx % Bwt::NUM_SYMBOLS_PER_BLOCK as usize == 0 {
                 bwt.set_milestones(
-                    (suffix_array_value / Bwt::NUM_SYMBOLS_PER_BLOCK) as usize,
+                    suffix_idx / Bwt::NUM_SYMBOLS_PER_BLOCK as usize,
                     &letter_counts,
                 );
             }
