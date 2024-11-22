@@ -12,11 +12,14 @@ pub struct CompressedSuffixArray {
 
 impl CompressedSuffixArray {
     /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
-    pub fn new(length: usize, suffix_array_compression_ratio: u64) -> Self {
-        let bits_per_element = 64 - (length - 1).leading_zeros() as u64;
-
+    pub fn new(uncompressed_length: usize, suffix_array_compression_ratio: u64) -> Self {
+        assert_ne!(
+            uncompressed_length, 0,
+            "length of compressed suffix array should not be zero"
+        );
+        let bits_per_element = 64 - uncompressed_length.leading_zeros() as u64;
         CompressedSuffixArray {
-            data: vec![0; length],
+            data: vec![0; uncompressed_length / suffix_array_compression_ratio as usize],
             suffix_array_compression_ratio,
             bits_per_element,
         }
@@ -45,21 +48,37 @@ impl CompressedSuffixArray {
         };
     }
 
-    ///reconstructs the value stored in the given element position in the compressed suffix array.
-    /// Note that this position does not represent the uncompressed SA position, but instead the
-    /// ith index in the compressed SA.
-    fn reconstruct_value(&self, position: usize) -> u64 {
-        let word_position = (position * self.bits_per_element as usize) / 64;
-        let bit_position = (position * self.bits_per_element as usize) % 64;
-        let bitmask = (1 << self.bits_per_element) - 1;
-        let first_word = (self.data[word_position] & (bitmask << bit_position)) >> bit_position;
-        let second_word = match self.data[word_position + 1].checked_shr(64 - bit_position as u32) {
-            Some(val) => val & (bitmask >> 64 - bit_position),
-            None => 0,
-        };
-        let unmasked_value = first_word | second_word;
+    ///reconstructs the value at the given index in the suffix array.
+    /// If that position wasn't sampled (i.e., not divisible by the compression ratio),
+    /// this function will return None.
+    pub fn reconstruct_value(&self, position: usize) -> Option<u64> {
+        //if the position isn't sampled, return None to show it
+        if position % self.suffix_array_compression_ratio as usize != 0 {
+            return None;
+        }
+        let sampled_position = position / self.suffix_array_compression_ratio as usize;
+        let word_position = (sampled_position * self.bits_per_element as usize) / 64;
+        let first_word_bit_start_position =
+            (sampled_position * self.bits_per_element as usize) % 64;
+        let first_word_num_bits = self
+            .bits_per_element
+            .min(64 - first_word_bit_start_position as u64);
+        let second_word_num_bits = self.bits_per_element - first_word_num_bits;
 
-        return unmasked_value;
+        let first_word_bitmask = (1 << first_word_num_bits) - 1;
+        let first_word_value_bits =
+            (self.data[word_position] >> first_word_bit_start_position) & first_word_bitmask;
+            //construct the second word in an IF statement because otherwise the array
+            //could go out of bounds if the suffix array ends at this word.
+        if second_word_num_bits != 0 {
+            let second_word_bitmask = (1 << second_word_num_bits) - 1;
+            let second_word_value_bits =
+                (self.data[word_position + 1] & second_word_bitmask) << first_word_num_bits;
+
+            return Some(first_word_value_bits | second_word_value_bits);
+        } else {
+            return Some(first_word_value_bits);
+        }
     }
 
     /// Returns true if the given position is sampled in the compressed suffix array.
@@ -74,9 +93,9 @@ mod tests {
 
     #[test]
     fn check_compressed_suffix_array() -> anyhow::Result<()> {
-        let sa_len = 256;
+        let sa_len = 123451;
         let sa_values: Vec<u64> = (0..sa_len).collect();
-        
+
         for compression_ratio in 1..16 {
             let compressed_length = (sa_len / compression_ratio) as usize;
             let mut csa = CompressedSuffixArray::new(sa_len as usize, compression_ratio);
@@ -88,7 +107,7 @@ mod tests {
             );
 
             //set the values
-            for sa_value_idx in 0..compressed_length{
+            for sa_value_idx in 0..compressed_length {
                 csa.set_value(
                     sa_values[sa_value_idx * compression_ratio as usize],
                     sa_value_idx,
@@ -96,9 +115,11 @@ mod tests {
             }
 
             //check the compressed suffix array values
-            for sa_value_idx in 0..compressed_length{
+            for sa_value_idx in 0..compressed_length {
                 let expected_value = sa_values[sa_value_idx * compression_ratio as usize];
-                let value_from_csa = csa.reconstruct_value(sa_value_idx);
+                let value_from_csa = csa
+                    .reconstruct_value(sa_value_idx * compression_ratio as usize)
+                    .expect("suffix array was not sampled here!");
                 assert_eq!(
                     value_from_csa,
                     expected_value,
