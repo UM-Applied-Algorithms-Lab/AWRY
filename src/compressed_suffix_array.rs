@@ -45,14 +45,6 @@ impl CompressedSuffixArray {
         };
     }
 
-    pub fn get_value(&self, position: usize) -> Option<u64> {
-        if position % self.suffix_array_compression_ratio as usize == 0 {
-            Some(self.reconstruct_value(position / self.suffix_array_compression_ratio as usize))
-        } else {
-            None
-        }
-    }
-
     ///reconstructs the value stored in the given element position in the compressed suffix array.
     /// Note that this position does not represent the uncompressed SA position, but instead the
     /// ith index in the compressed SA.
