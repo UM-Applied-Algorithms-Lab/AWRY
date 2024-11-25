@@ -311,7 +311,7 @@ impl FmIndex {
         let new_start_ptr = letter_prefix_sum
             + self
             .bwt
-            .global_occurrence(search_range.start_ptr, &query_symbol);
+                .global_occurrence(search_range.start_ptr - 1, &query_symbol);
         let new_end_ptr = letter_prefix_sum
             + self
                 .bwt
