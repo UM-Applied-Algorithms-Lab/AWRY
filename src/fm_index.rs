@@ -227,15 +227,19 @@ impl FmIndex {
     /// Finds the search range for the given query. This is the heart of the count() and locate() functions.
     pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
-            let mut search_range = SearchRange::new(self);
-            for query_char in query.chars().rev() {
-                search_range = self.update_range_with_symbol(
-                    search_range,
-                    Symbol::new_ascii(self.alphabet(), query_char),
-                );
+            let alphabet = self.alphabet();
+            let final_query_index =
+                Symbol::new_ascii(alphabet, query.chars().last().unwrap()).index();
+            let mut search_range =
+                SearchRange::new(self, Symbol::new_index(alphabet, final_query_index));
+            for query_char in query.chars().rev().skip(1) {
+                if !search_range.is_empty() {
+                    let query_symbol = Symbol::new_ascii(alphabet, query_char);
+                    search_range = self.update_range_with_symbol(search_range, query_symbol);
+            }
             }
 
-            search_range
+            return search_range;
         } else {
             let mut search_range = self.kmer_lookup_table.get_range_for_kmer(self, query);
             for query_char in query
