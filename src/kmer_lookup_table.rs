@@ -17,8 +17,8 @@ pub struct KmerLookupTable {
 }
 
 impl KmerLookupTable {
-    const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 12;
-    const DEFAULT_KMER_LEN_AMINO: u8 = 5;
+    const DEFAULT_KMER_LEN_NUCLEOTIDE: u8 = 10;
+    const DEFAULT_KMER_LEN_AMINO: u8 = 4;
 
     /// Creates and populates a new table for all kmers of the given length
     pub fn new(fm_index: &FmIndex, kmer_len: u8) -> Self {
@@ -107,13 +107,23 @@ impl KmerLookupTable {
         let cardinality = alphabet.num_encoding_symbols() as usize;
         let num_entries = cardinality.pow(kmer_len as u32);
 
-        return num_entries;        
+        return num_entries;
     }
 
-    /// Populates the table with search ranges. It is recommended to reserve the capacity of the table before calling this method. 
+    /// Populates the table with search ranges. It is recommended to reserve the capacity of the table before calling this method.
     pub fn populate_table(&mut self, fm_index: &FmIndex) {
-        let search_range = SearchRange::new(&fm_index);
-        self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
+        for symbol_index in 1..fm_index.alphabet().num_encoding_symbols() {
+            let symbol = Symbol::new_index(fm_index.alphabet(), symbol_index);
+            let search_range = SearchRange::new(fm_index, symbol);
+            self.populate_table_recursive(
+                fm_index,
+                &search_range,
+                1,
+                symbol_index as usize,
+                fm_index.alphabet().num_encoding_symbols() as usize,
+            );
+        }
+        // self.populate_table_recursive(fm_index, &search_range, 1 as usize, 0 as usize, 1 as usize);
     }
 
     /// Recursive component of populating tables.
@@ -134,11 +144,12 @@ impl KmerLookupTable {
         let alphabet = fm_index.alphabet();
         let encoding_symbol_idx_range = 1..alphabet.num_encoding_symbols();
 
-        for idx in encoding_symbol_idx_range{
+        for idx in encoding_symbol_idx_range {
             let new_search_range = fm_index
                 .update_range_with_symbol(search_range.clone(), Symbol::new_index(alphabet, idx));
             let new_kmer_idx = current_kmer_idx + (idx as usize * letter_multiplier);
-            let new_letter_multiplier = letter_multiplier * alphabet.num_encoding_symbols() as usize;
+            let new_letter_multiplier =
+                letter_multiplier * alphabet.num_encoding_symbols() as usize;
             self.populate_table_recursive(
                 fm_index,
                 &new_search_range,
