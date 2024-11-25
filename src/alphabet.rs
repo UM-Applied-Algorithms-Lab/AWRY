@@ -245,7 +245,7 @@ impl Symbol {
                         2 => 0b101, //C
                         3 => 0b011, //G
                         5 => 0b001, //T
-                        _ => 0b010, //4 is ambiguity character,
+                        _ => 0b010, //4 is ambiguity character N,
                     },
                     SymbolEncoding::BitVector(encoding) => encoding,
                 }),
