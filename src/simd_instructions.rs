@@ -86,7 +86,7 @@ impl SimdVec256 {
         for bitmask_word_idx in 0..bitmask_quad_word_index {
             bitmasks[bitmask_word_idx] = !0;
         }
-        bitmasks[bitmask_quad_word_index] = !0 >> (63 - (local_query_position % 64));
+        bitmasks[bitmask_quad_word_index] = !0u64 >> (63 - (local_query_position % 64));
 
         let mut popcount = 0;
         unsafe {
