@@ -500,7 +500,7 @@ mod tests {
         let mut letters_remaining = sequence_len;
         while letters_remaining >= line_len as usize {
             for _ in 0..line_len {
-                fasta_file.write(index_to_nucleotide(rng.gen_range(0..5)).as_bytes())?;
+                fasta_file.write(index_to_nucleotide(rng.gen_range(0..4)).as_bytes())?;
             }
             fasta_file.write("\n".to_owned().as_bytes())?;
             letters_remaining -= line_len as usize;
@@ -508,7 +508,7 @@ mod tests {
 
         //write the last line
         for _ in 0..letters_remaining {
-            fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+            fasta_file.write(index_to_nucleotide(rng.gen_range(0..4)).as_bytes())?;
         }
         fasta_file.write("\n".to_owned().as_bytes())?;
 
@@ -534,7 +534,7 @@ mod tests {
         let mut letters_remaining = sequence_len;
         while letters_remaining >= line_len as usize {
             for _ in 0..line_len {
-                fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+                fasta_file.write(index_to_amino(rng.gen_range(0..20)).as_bytes())?;
             }
             fasta_file.write("\n".to_owned().as_bytes())?;
             letters_remaining -= line_len as usize;
@@ -542,7 +542,7 @@ mod tests {
 
         //write the last line
         for _ in 0..letters_remaining {
-            fasta_file.write(index_to_amino(rng.gen_range(0..21)).as_bytes())?;
+            fasta_file.write(index_to_amino(rng.gen_range(0..20)).as_bytes())?;
         }
         fasta_file.write("\n".to_owned().as_bytes())?;
 
