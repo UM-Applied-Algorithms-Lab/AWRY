@@ -50,7 +50,11 @@ impl FmIndex {
             .clone()
             .unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
 
-        let sequence_delimiter = b'N';
+        let sequence_delimiter = if args.alphabet == SymbolAlphabet::Nucleotide {
+            b'N'
+        } else {
+            b'X'
+        };
         let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
         let sufr_builder_args = SufrBuilderArgs {
             text: seq_data.seq,
