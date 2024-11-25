@@ -41,28 +41,6 @@ pub struct FmBuildArgs {
     remove_intermediate_suffix_array_file: bool,
 }
 
-impl FmBuildArgs {
-    pub fn new(
-        input_file_src: String,
-        suffix_array_output_src: Option<String>,
-        suffix_array_compression_ratio: Option<u8>,
-        lookup_table_kmer_len: Option<u8>,
-        alphabet: SymbolAlphabet,
-        max_query_len: Option<usize>,
-        remove_intermediate_suffix_array_file: bool,
-    ) -> Self {
-        return FmBuildArgs {
-            input_file_src,
-            suffix_array_output_src,
-            suffix_array_compression_ratio,
-            lookup_table_kmer_len,
-            alphabet,
-            max_query_len,
-            remove_intermediate_suffix_array_file,
-        };
-    }
-}
-
 impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
