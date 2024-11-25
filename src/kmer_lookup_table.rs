@@ -42,9 +42,7 @@ impl KmerLookupTable {
             kmer_len: 0,
         };
         let table_size = Self::get_num_table_entries(kmer_len, alphabet);
-        table
-            .range_table
-            .reserve(table_size);
+        table.range_table.reserve(table_size);
 
         return table;
     }
@@ -87,8 +85,16 @@ impl KmerLookupTable {
         debug_assert!(kmer.len() >= self.kmer_len as usize);
 
         let alphabet = fm_index.alphabet();
-        let mut search_range = SearchRange::new(fm_index);
-        for char in kmer.chars().rev().take(self.kmer_len as usize) {
+        let mut search_range = SearchRange::new(
+            fm_index,
+            Symbol::new_ascii(alphabet, kmer.chars().last().unwrap()),
+        );
+        for char in kmer
+            .chars()
+            .rev()
+            .skip(1)
+            .take((self.kmer_len - 1) as usize)
+        {
             search_range =
                 fm_index.update_range_with_symbol(search_range, Symbol::new_ascii(alphabet, char));
         }

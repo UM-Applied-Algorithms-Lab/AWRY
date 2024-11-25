@@ -1,4 +1,4 @@
-use crate::fm_index::FmIndex;
+use crate::{alphabet::Symbol, fm_index::FmIndex};
 
 /// Type representing a position in the BWT
 pub type SearchPtr = u64;
@@ -12,10 +12,10 @@ pub struct SearchRange {
 
 impl SearchRange {
     /// Creates a new SearchRange, representing all positions in the BWT
-    pub fn new(fm_index: &FmIndex) -> Self {
+    pub fn new(fm_index: &FmIndex, symbol:Symbol) -> Self {
         SearchRange {
-            start_ptr: 0 as SearchPtr,
-            end_ptr: fm_index.bwt_len() - 1 as SearchPtr,
+            start_ptr: fm_index.prefix_sums()[symbol.index() as usize] as SearchPtr,
+            end_ptr: fm_index.prefix_sums()[(symbol.index()+1) as usize]  - 1 as SearchPtr,
         }
     }
 
