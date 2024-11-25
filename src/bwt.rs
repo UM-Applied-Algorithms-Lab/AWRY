@@ -291,7 +291,7 @@ impl Bwt {
             }
 
             Bwt::Amino(vec) => {
-                let alphabet = SymbolAlphabet::Nucleotide;
+                let alphabet = SymbolAlphabet::Amino;
                 let bwt_block = &vec[position_block_idx as usize];
 
                 for bit in 0..bwt_block.bit_vectors.len() {
