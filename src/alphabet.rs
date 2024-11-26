@@ -334,6 +334,17 @@ impl Symbol {
             },
         }
     }
+
+    pub fn is_sentinel(&self) -> bool {
+        match self.encoding {
+            SymbolEncoding::Ascii(val) => val == '$',
+            SymbolEncoding::Index(val) => val == 0,
+            SymbolEncoding::BitVector(val) => match self.alphabet {
+                SymbolAlphabet::Nucleotide => val == 0b100,
+                SymbolAlphabet::Amino => val == 0b00000,
+            },
+        }
+    }
 }
 
 #[cfg(test)]
