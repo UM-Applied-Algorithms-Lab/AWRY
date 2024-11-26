@@ -297,8 +297,9 @@ impl FmIndex {
 
             //read the sampled suffix array value, and add the number of backsteps taken to find the real position
             let sequence_position = self.sampled_suffix_array.reconstruct_value(backstep_position as usize).expect("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data.");
+            let location = (sequence_position + num_backsteps_taken) % self.bwt_len;
 
-            string_locations.push(sequence_position + num_backsteps_taken);
+            string_locations.push(location);
         }
 
         string_locations
