@@ -6,8 +6,8 @@ use std::arch::x86_64::{
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint8x16x2_t, vandq_u64, vdupq_n_u64, vdupq_n_u8, vgetq_lane, vld1q_u8_x2, vmvnq_u64,
-    vorrq_u64, vst1q_u8_x2,
+    uint8x16x2_t, vandq_u64, vdupq_n_u64, vdupq_n_u8, vgetq_lane_u64, vld1q_u8_x2, vorrq_u64,
+    vst1q_u8_x2, vmvnq_u8,
 };
 
 #[repr(align(32))]
@@ -154,8 +154,8 @@ impl SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
-                    0: vandq_u8(self.data.0, vec_b.data.0),
-                    1: vandq_u8(self.data.1, vec_b.data.1),
+                    0: vandq_u64(self.data.0, vec2.data.0),
+                    1: vandq_u64(self.data.1, vec2.data.1),
                 },
             }
         }
@@ -164,8 +164,8 @@ impl SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
-                    0: vorrq_u8(self.data.0, vec_b.data.0),
-                    1: vorrq_u8(self.data.1, vec_b.data.1),
+                    0: vorrq_u64(self.data.0, vec2.data.0),
+                    1: vorrq_u64(self.data.1, vec2.data.1),
                 },
             }
         }
@@ -191,14 +191,14 @@ impl SimdVec256 {
 
         let mut popcount = 0;
         unsafe {
-            popcount += (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 0) as u64 & bitmasks[0])
+            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.0, 0) as u64 & bitmasks[0])
                 .count_ones();
             popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(vec.data.0, 1) & bitmasks[1]).count_ones();
+                (std::arch::aarch64::vgetq_lane_u64(self.data.0, 1) & bitmasks[1]).count_ones();
             popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 0) & bitmasks[2]).count_ones();
+                (std::arch::aarch64::vgetq_lane_u64(self.data.1, 0) & bitmasks[2]).count_ones();
             popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(vec.data.1, 1) & bitmasks[3]).count_ones();
+                (std::arch::aarch64::vgetq_lane_u64(self.data.1, 1) & bitmasks[3]).count_ones();
         }
         return popcount;
     }
@@ -206,7 +206,7 @@ impl SimdVec256 {
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut array = AlignedVectorArray::new();
         unsafe {
-            vst1q_u8_x2(array.data.as_mut_ptr() as *mut __m256i, self.data);
+            vst1q_u8_x2(array.data.as_mut_ptr() as *mut uint8x16x2_t, self.data);
         }
 
         array.data
