@@ -70,8 +70,8 @@ impl CompressedSuffixArray {
         let first_word_bitmask = (1 << first_word_num_bits) - 1;
         let first_word_value_bits =
             (self.data[word_position] >> first_word_bit_start_position) & first_word_bitmask;
-            //construct the second word in an IF statement because otherwise the array
-            //could go out of bounds if the suffix array ends at this word.
+        //construct the second word in an IF statement because otherwise the array
+        //could go out of bounds if the suffix array ends at this word.
         if second_word_num_bits != 0 {
             let second_word_bitmask = (1 << second_word_num_bits) - 1;
             let second_word_value_bits =
