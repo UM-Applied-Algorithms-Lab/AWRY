@@ -332,6 +332,9 @@ impl FmIndex {
     /// Finds the symbol that preceeds the given search pointer, used for finding the most recent sampled SA position.
     pub fn backstep(&self, search_pointer: SearchPtr) -> SearchPtr {
         let symbol = self.bwt.get_symbol_at(&search_pointer);
+        if symbol.is_sentinel(){
+            return 0;
+        }
         let symbol_prefix_sum = self.prefix_sums[symbol.index() as usize];
         let global_occurrence = self.bwt.global_occurrence(search_pointer, &symbol);
         return symbol_prefix_sum + global_occurrence - 1;
