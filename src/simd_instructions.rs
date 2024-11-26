@@ -6,8 +6,8 @@ use std::arch::x86_64::{
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint8x16x2_t, vandq_u64, vdupq_n_u64, vdupq_n_u8, vgetq_lane_u64, vld1q_u8_x2, vorrq_u64,
-    vst1q_u8_x2, vmvnq_u8,
+    uint64x2x2_t, vandq_u64, vdupq_n_u8, vgetq_lane_u64, vgetq_lane_u8, vld1q_u8_x2, vmvnq_u8,
+    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u8_x2,
 };
 
 #[repr(align(32))]
@@ -29,7 +29,7 @@ pub struct SimdVec256 {
 #[cfg(target_arch = "aarch64")]
 #[derive(Debug, Clone, Copy)]
 pub struct SimdVec256 {
-    pub data: uint8x16x2_t,
+    pub data: uint64x2x2_t,
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -128,14 +128,16 @@ impl SimdVec256 {
     pub fn new(vec_data: &AlignedVectorArray) -> Self {
         unsafe {
             SimdVec256 {
-                data: vld1q_u8_x2(vec_data.data.as_ptr() as *const u8),
+                data: vld1q_u64_x2(vec_data.data.as_ptr() as *const u8),
             }
         }
     }
     pub fn zero() -> Self {
         unsafe {
             SimdVec256 {
-                data: vdupq_n_u8(0),
+                data: uint64x2x2_t {
+                    val: [vdupq_n_u64(0), vdupq_n_u64(0)],
+                },
             }
         }
     }
@@ -145,7 +147,7 @@ impl SimdVec256 {
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
-                data: vld1q_u8_x2(vals.data.as_ptr() as *const u8),
+                data: vld1q_u64_x2(vals.data.as_ptr() as *const u8),
             }
         }
     }
@@ -174,13 +176,19 @@ impl SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint8x16x2_t {
-                    0: vandq_u64(vmvnq_u8(self.data.0), vec2.data.0),
-                    1: vandq_u64(vmvnq_u8(self.data.1), vec2.data.1),
+                    0: vandq_u64(vreinterpretq_u64_u16(
+                        vmvnq_u16(vreinterpretq_u16_u64(self.data.0)),
+                        (vec2.data.0),
+                    )),
+                    1: vandq_u64(vreinterpretq_u64_u16(
+                        vmvnq_u16(vreinterpretq_u16_u64(self.data.1)),
+                        (vec2.data.1),
+                    )),
                 },
             }
         }
     }
-    pub fn masked_popcount(&self, local_query_position: usize) -> u32 {
+    pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 
@@ -203,10 +211,22 @@ impl SimdVec256 {
         return popcount;
     }
 
+    pub fn get_bit(&self, bit_idx: &u64) -> u64 {
+        let byte_idx = bit_idx / 8;
+        let bit_in_byte = bit_idx % 8;
+        unsafe {
+            if lane_idx == 0 {
+                return (vgetq_lane_u64(self.data.0, byte_idx) >> bit_in_byte) & 1;
+            } else {
+                return (vgetq_lane_u64(self.data.1, byte_idx) >> bit_in_byte) & 1;
+            }
+        }
+    }
+
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut array = AlignedVectorArray::new();
         unsafe {
-            vst1q_u8_x2(array.data.as_mut_ptr() as *mut uint8x16x2_t, self.data);
+            vst1q_u64_x2(array.data.as_mut_ptr() as *mut uint8x16x2_t, self.data);
         }
 
         array.data
