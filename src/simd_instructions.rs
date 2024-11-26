@@ -186,21 +186,9 @@ impl SimdVec256 {
     }
 
     pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
-        unsafe {
-            SimdVec256 {
-                data: uint64x2x2_t {
-                    0: vandq_u64(vreinterpretq_u64_u16(
-                        vmvnq_u16(vreinterpretq_u16_u64(self.data.0)),
-                        vec2.data.0,
-                    )),
-                    1: vandq_u64(vreinterpretq_u64_u16(
-                        vmvnq_u16(vreinterpretq_u16_u64(self.data.1)),
-                        vec2.data.1,
-                    )),
-                },
-            }
-        }
+        self.not().and(vec2)
     }
+    
     pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
