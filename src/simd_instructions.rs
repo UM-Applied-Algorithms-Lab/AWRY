@@ -7,7 +7,7 @@ use std::arch::x86_64::{
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
     uint64x2x2_t, uint8x16x2_t, vandq_u64, vdupq_n_u64, vgetq_lane_u64, vld1q_u64_x2, vmvnq_u16,
-    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64_x2,
+    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16,
 };
 
 #[repr(align(32))]
@@ -233,7 +233,7 @@ impl SimdVec256 {
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut array = AlignedVectorArray::new();
         unsafe {
-            vst1q_u64_x2(array.data.as_mut_ptr() as *mut uint8x16x2_t, self.data);
+            vld1q_u64_x2(array.data.as_mut_ptr() as *mut uint8x16x2_t, self.data);
         }
 
         array.data
