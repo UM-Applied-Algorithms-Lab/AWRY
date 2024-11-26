@@ -7,7 +7,7 @@ use std::arch::x86_64::{
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
     uint64x2x2_t, uint8x16x2_t, vandq_u64, vdupq_n_u64, vgetq_lane_u64, vld1q_u64_x2, vmvnq_u16,
-    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16,
+    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64_x2,
 };
 
 #[repr(align(32))]
@@ -128,16 +128,14 @@ impl SimdVec256 {
     pub fn new(vec_data: &AlignedVectorArray) -> Self {
         unsafe {
             SimdVec256 {
-                data: vld1q_u64_x2(vec_data.data.as_ptr() as *const u8),
+                data: vld1q_u64_x2(vec_data.data.as_ptr() as *const u64),
             }
         }
     }
     pub fn zero() -> Self {
         unsafe {
             SimdVec256 {
-                data: uint64x2x2_t {
-                    val: [vdupq_n_u64(0), vdupq_n_u64(0)],
-                },
+                data: uint64x2x2_t(vdupq_n_u64(0), vdupq_n_u64(0)),
             }
         }
     }
@@ -147,7 +145,7 @@ impl SimdVec256 {
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
-                data: vld1q_u64_x2(vals.data.as_ptr() as *const u8),
+                data: vld1q_u64_x2(vals.data.as_ptr() as *const u64),
             }
         }
     }
@@ -188,7 +186,7 @@ impl SimdVec256 {
     pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
         self.not().and(vec2)
     }
-    
+
     pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
