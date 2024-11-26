@@ -1,5 +1,5 @@
 [package]
-name = "awri"
+name = "awry"
 version = "0.0.1"
 description = "Library for creating FM-indexes from FASTA/FASTQ files."
 license = "BSD-3-Clause"
