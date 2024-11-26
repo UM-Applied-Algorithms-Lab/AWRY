@@ -6,8 +6,8 @@ use std::arch::x86_64::{
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint64x2x2_t, vandq_u64, vdupq_n_u8, vgetq_lane_u64, vgetq_lane_u8, vld1q_u8_x2, vmvnq_u8,
-    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u8_x2,
+    uint64x2x2_t, uint8x16x2_t, vandq_u64, vdupq_n_u64, vgetq_lane_u64, vld1q_u64_x2, vmvnq_u16,
+    vorrq_u64, vreinterpretq_u16_u64, vreinterpretq_u64_u16,
 };
 
 #[repr(align(32))]
@@ -155,7 +155,7 @@ impl SimdVec256 {
     pub fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
-                data: uint8x16x2_t {
+                data: uint64x2x2_t {
                     0: vandq_u64(self.data.0, vec2.data.0),
                     1: vandq_u64(self.data.1, vec2.data.1),
                 },
@@ -165,24 +165,37 @@ impl SimdVec256 {
     pub fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
-                data: uint8x16x2_t {
+                data: uint64x2x2_t {
                     0: vorrq_u64(self.data.0, vec2.data.0),
                     1: vorrq_u64(self.data.1, vec2.data.1),
                 },
             }
         }
     }
+
+    fn not(&self) -> SimdVec256 {
+        unsafe {
+            SimdVec256 {
+                data: uint64x2x2_t {
+                    0: vreinterpretq_u64_u16(vmvnq_u16(vreinterpretq_u16_u64(self.data.0))),
+
+                    1: vreinterpretq_u64_u16(vmvnq_u16(vreinterpretq_u16_u64(self.data.1))),
+                },
+            }
+        }
+    }
+
     pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
-                data: uint8x16x2_t {
+                data: uint64x2x2_t {
                     0: vandq_u64(vreinterpretq_u64_u16(
                         vmvnq_u16(vreinterpretq_u16_u64(self.data.0)),
-                        (vec2.data.0),
+                        vec2.data.0,
                     )),
                     1: vandq_u64(vreinterpretq_u64_u16(
                         vmvnq_u16(vreinterpretq_u16_u64(self.data.1)),
-                        (vec2.data.1),
+                        vec2.data.1,
                     )),
                 },
             }
@@ -212,13 +225,21 @@ impl SimdVec256 {
     }
 
     pub fn get_bit(&self, bit_idx: &u64) -> u64 {
-        let byte_idx = bit_idx / 8;
-        let bit_in_byte = bit_idx % 8;
+        let lane_idx = bit_idx / 128;
+        let bit_in_lane = bit_idx % 128;
+        let word_idx = bit_in_lane / 64;
+        let bit_in_word = bit_idx % 64;
         unsafe {
             if lane_idx == 0 {
-                return (vgetq_lane_u64(self.data.0, byte_idx) >> bit_in_byte) & 1;
+                match word_idx {
+                    0 => return (vgetq_lane_u64(self.data.0, 0) >> bit_in_word) & 1,
+                    _ => return (vgetq_lane_u64(self.data.0, 1) >> bit_in_word) & 1,
+                }
             } else {
-                return (vgetq_lane_u64(self.data.1, byte_idx) >> bit_in_byte) & 1;
+                match word_idx {
+                    0 => return (vgetq_lane_u64(self.data.1, 0) >> bit_in_word) & 1,
+                    _ => return (vgetq_lane_u64(self.data.1, 1) >> bit_in_word) & 1,
+                }
             }
         }
     }
