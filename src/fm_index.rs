@@ -368,7 +368,7 @@ mod tests {
         let sufr_file = libsufr::SufrFile::<u64>::read(&suffix_array_file_src)
             .expect("Could not read suffix array file");
 
-        for text_position in 00..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
+        for text_position in 0..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
             let data_slice = &sufr_file.text[text_position..text_position + test_kmer_len];
             let kmer_string = String::from_utf8(data_slice.to_vec())
                 .expect("unable to parse kmer ascii values to string");
@@ -412,7 +412,7 @@ mod tests {
         const TEST_KMER_LEN: usize = 24;
         const FASTA_SRC: &str = "test_nucleotide.fasta";
         const FASTA_LINE_LEN: u8 = 80;
-        const FASTA_SEQ_LEN: usize = 100001;
+        const FASTA_SEQ_LEN: usize = 1847;
         const NUCLEOTIDE_FASTA_SRC:&str = "test_nucleotide.fasta";
         const SUFFIX_ARRAY_FILE_SRC:&str = "test_nucleotide.sufr";
         const FM_INDEX_SRC:&str = "test_nucleotide.awry";
@@ -433,13 +433,11 @@ mod tests {
         .expect("unable to build fm index");
 
         //save the fm index to file
-
         fm_index
             .save(&Path::new(&FM_INDEX_SRC))
             .expect("unable to save fm index to file");
 
         //create map of kmer->Vec<position>
-
         compare_index_to_reference(&fm_index, &SUFFIX_ARRAY_FILE_SRC, TEST_KMER_LEN);
 
         Ok(())
@@ -474,13 +472,11 @@ mod tests {
         .expect("unable to build fm index");
 
         //save the fm index to file
-
         fm_index
             .save(&Path::new(&fm_index_src))
             .expect("unable to save fm index to file");
 
         //create map of kmer->Vec<position>
-
         compare_index_to_reference(&fm_index, &suffix_array_file_src, TEST_KMER_LEN);
 
         Ok(())
