@@ -1,5 +1,6 @@
 name: CI Build and Test
 on: [push, pull_request]
+  branches: [main]
 
 env:
   RUST_BACKTRACE: full
