@@ -30,7 +30,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: binary-${{ matrix.os }}
-          path: target/release/<binary-name>
+          path: target/release/libawry.rlib
 
   test:
     needs: build
