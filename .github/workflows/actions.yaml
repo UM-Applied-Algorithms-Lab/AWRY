@@ -32,6 +32,7 @@ jobs:
           name: binary-${{ matrix.os }}
           path: target/release/libawry.rlib
 
+
   test:
     needs: build
     runs-on: ${{ matrix.os }}
