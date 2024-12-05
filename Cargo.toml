@@ -1,9 +1,13 @@
 [package]
 name = "awry"
 version = "0.0.1"
-description = "Library for creating FM-indexes from FASTA/FASTQ files."
+description = "Library for creating FM-indexes from FASTA/FASTQ files. AWRY is able to search at lightning speed by leveraging SIMD vectorization and multithreading over collections of queries."
 license = "BSD-3-Clause"
+homepage = "https://github.com/UM-Applied-Algorithms-Lab/AWRY_Index"
 repository = "https://github.com/UM-Applied-Algorithms-Lab/AWRY_Index"
+readme= "README.md"
+keywords = ["search", "exact_match_search", "FM-index", "bioinformatics",  "FASTA_FASTQ"]
+categories = ["command-line-utilities", "algorithms", "hardware-support", "science::bioinformatics"]
 authors = [
     "Tim Anderson <tim.anderson@umontana.edu"
 ]
