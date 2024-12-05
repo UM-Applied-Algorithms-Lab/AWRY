@@ -11,8 +11,14 @@ on:
 jobs:
   automatic-gpt-code-review:
     runs-on: ubuntu-latest
-    steps:
-      - uses: anc95/ChatGPT-CodeReview@main
+    steps: 
+      - name: Checkout Code
+          uses: actions/checkout@v3
+          
+      - name: Debug File Changes
+        run: git diff --name-only ${{ github.event.before }} ${{ github.sha }}
+      
+      - uses: anc95/ChatGPT-CodeReview@v1.0.19
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
