@@ -32,13 +32,24 @@ pub struct FmIndex {
 
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
+///Arguments for builing an FM-index
 pub struct FmBuildArgs {
+    ///file source for the input, either Fasta or Fastq format
     input_file_src: String,
+    ///file source to output the intermediate suffix array file.
     suffix_array_output_src: Option<String>,
+    ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
     suffix_array_compression_ratio: Option<u8>,
+    ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory. 
+    /// If None, uses sensible defaults.
     lookup_table_kmer_len: Option<u8>,
+    ///alphabet of the input text, and therefore the FM-index.
     alphabet: SymbolAlphabet,
+    ///Maximum length to allow for searching, or None for unlimited. Setting this slightly speeds up build times, 
+    /// but may fail if searching for longer queries than specified/
     max_query_len: Option<usize>,
+    ///If true, will delete the intermediate suffix array file when done. 
+    /// This file is unnecessary for proper functionality of the FM-index.
     remove_intermediate_suffix_array_file: bool,
 }
 
@@ -483,10 +494,10 @@ mod tests {
         const SUFFIX_ARRAY_SRC:&str = "test_fastq.sa";
         const FM_INDEX_SRC:&str = "fastq.awry";
 
-        let num_sequences = 20;
+        let num_sequences = 30;
         let mut rng = thread_rng();
         let sequence_lengths: Vec<u64> = (0..num_sequences)
-            .map(|_| rng.gen_range(21u64..59u64))
+            .map(|_| rng.gen_range(5u64..59u64))
             .collect();
         let sequences = generate_random_fastq(FASTQ_SRC, sequence_lengths);
 
@@ -529,8 +540,8 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
-            .read(false)
             .open(fasta_src)
             .expect("unable to open nucleotide fasta file for writing");
 
@@ -563,8 +574,8 @@ mod tests {
         rng.gen_range(0..21);
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
-            .read(false)
             .open(fasta_src)
             .expect("unable to open amino fasta file for writing");
 
@@ -633,8 +644,8 @@ mod tests {
 
         let mut fastq_file = std::fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
-            .read(false)
             .open(output_src)
             .expect("unable to open fastq file for writing");
 
@@ -646,7 +657,7 @@ mod tests {
             let quality_string = (0..seq_length)
                 .map(|_| quality_char_set.choose(&mut rng).unwrap())
                 .collect::<String>();
-
+            
             let header_string = format!("@dummy-0:{}+\n", seq_length);
             fastq_file.write_all(header_string.as_bytes()).expect("could not write to fastq file");
             fastq_file.write_all(sequence.as_bytes()).expect("could not write to fastq file");
@@ -657,6 +668,7 @@ mod tests {
 
             sequences.push(sequence);
         }
+        fastq_file.flush().expect("unable to flush file");
 
         return sequences;
     }

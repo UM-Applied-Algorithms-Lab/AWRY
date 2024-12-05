@@ -10,6 +10,7 @@ use std::arch::aarch64::{
     vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64,
 };
 
+///Data vector aligned for proper use with 256-bit SIMD instructions.
 #[repr(align(32))]
 pub struct AlignedVectorArray {
     data: [u64; 4],
@@ -22,12 +23,14 @@ impl AlignedVectorArray {
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy)]
+///Struct containing an AVX2 256-bit vector on x86_64
 pub struct SimdVec256 {
     pub data: __m256i,
 }
 
 #[cfg(target_arch = "aarch64")]
 #[derive(Debug, Clone, Copy)]
+///Struct containing an ARM-Neon 256-bit vector on ARM(made up of 2 128-bit lanes)
 pub struct SimdVec256 {
     pub data: uint64x2x2_t,
 }
@@ -98,6 +101,9 @@ impl SimdVec256 {
 
         return popcount;
     }
+
+
+    ///Gets the value of the bit at the given bit index of the vector. The value is shifted into bit0, so returns 0 or 1.
     pub fn get_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
@@ -113,6 +119,7 @@ impl SimdVec256 {
         }
     }
 
+    ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut array = AlignedVectorArray::new();
         unsafe {
@@ -210,6 +217,7 @@ impl SimdVec256 {
         return popcount;
     }
 
+    ///Gets the value of the bit at the given bit index of the vector. The value is shifted into bit0, so returns 0 or 1.
     pub fn get_bit(&self, bit_idx: &u64) -> u64 {
         let lane_idx = bit_idx / 128;
         let bit_in_lane = bit_idx % 128;
@@ -230,6 +238,7 @@ impl SimdVec256 {
         }
     }
 
+    ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut array = AlignedVectorArray::new();
         unsafe {
