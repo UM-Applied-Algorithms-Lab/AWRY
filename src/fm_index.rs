@@ -24,8 +24,9 @@ pub struct FmIndex {
     sampled_suffix_array: CompressedSuffixArray,
     /// table with precomputed ranges for the first k substring of a query.
     kmer_lookup_table: KmerLookupTable,
-
+    /// length of the bwt, this is also the length of the suffix array (and len of the full text + 1)
     bwt_len: u64,
+    /// version number of this struct implementation
     version_number: u64,
 }
 
@@ -44,6 +45,7 @@ pub struct FmBuildArgs {
 impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
+    /// Construct a new FM-index using the supplied build args.
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
         let suffix_array_src = args
             .suffix_array_output_src
