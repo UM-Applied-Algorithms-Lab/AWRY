@@ -26,7 +26,7 @@ impl NucleotideBwtBlock {
     pub const NUM_BIT_VECTORS: usize = 3;
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
 
-    ///creates a new bwt block, with data zeroed out
+    ///creates a new bwt block, with data zeroed out.
     pub fn new() -> Self {
         NucleotideBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
@@ -34,7 +34,7 @@ impl NucleotideBwtBlock {
         }
     }
 
-    ///creates a bwt block from the given milestone and bit-vector data
+    ///creates a bwt block from the given milestone and bit-vector data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
         bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
@@ -45,6 +45,7 @@ impl NucleotideBwtBlock {
         }
     }
 
+    ///Returns the symbol at the given position in the BWT.
     pub fn get_symbol_at(&self, position_block: u64)->Symbol{
         let mut bit_vector_encoding: u64 = 0;
 
@@ -145,6 +146,7 @@ impl AminoBwtBlock {
         }
     }
 
+    ///Gets the symbol at the given position in the BWT block.
     pub fn get_symbol_at(&self, position_block: u64)->Symbol{
         let mut bit_vector_encoding: u64 = 0;
 
@@ -156,6 +158,7 @@ impl AminoBwtBlock {
         Symbol::new_bit_vector(SymbolAlphabet::Amino, bit_vector_encoding as u8)
     }
 
+    ///Sets the symbol at the given position in the BWT block.
     pub fn set_symbol_at(&mut self, symbol:&Symbol, position_block: u64){
         //create a bitmask, we'll use this to set the bit with an OR operation
         let vector_bitmask = SimdVec256::as_one_hot(position_block);

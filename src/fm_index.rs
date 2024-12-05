@@ -32,13 +32,24 @@ pub struct FmIndex {
 
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
+///Arguments for builing an FM-index
 pub struct FmBuildArgs {
+    ///file source for the input, either Fasta or Fastq format
     input_file_src: String,
+    ///file source to output the intermediate suffix array file.
     suffix_array_output_src: Option<String>,
+    ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
     suffix_array_compression_ratio: Option<u8>,
+    ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory. 
+    /// If None, uses sensible defaults.
     lookup_table_kmer_len: Option<u8>,
+    ///alphabet of the input text, and therefore the FM-index.
     alphabet: SymbolAlphabet,
+    ///Maximum length to allow for searching, or None for unlimited. Setting this slightly speeds up build times, 
+    /// but may fail if searching for longer queries than specified/
     max_query_len: Option<usize>,
+    ///If true, will delete the intermediate suffix array file when done. 
+    /// This file is unnecessary for proper functionality of the FM-index.
     remove_intermediate_suffix_array_file: bool,
 }
 
