@@ -646,12 +646,12 @@ mod tests {
                 .collect::<String>();
 
             let header_string = format!("@dummy-0:{}+\n", seq_length);
-            fastq_file.write_all(header_string.as_bytes());
-            fastq_file.write_all(sequence.as_bytes());
-            fastq_file.write_all("\n".as_bytes());
-            fastq_file.write_all("+\n".as_bytes());
-            fastq_file.write_all(quality_string.as_bytes());
-            fastq_file.write_all("\n".as_bytes());
+            fastq_file.write_all(header_string.as_bytes()).expect("could not write to fastq file");
+            fastq_file.write_all(sequence.as_bytes()).expect("could not write to fastq file");
+            fastq_file.write_all("\n".as_bytes()).expect("could not write to fastq file");
+            fastq_file.write_all("+\n".as_bytes()).expect("could not write to fastq file");
+            fastq_file.write_all(quality_string.as_bytes()).expect("could not write to fastq file");
+            fastq_file.write_all("\n".as_bytes()).expect("could not write to fastq file");
 
             sequences.push(sequence);
         }
