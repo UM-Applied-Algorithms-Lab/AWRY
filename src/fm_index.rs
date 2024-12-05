@@ -156,7 +156,7 @@ impl FmIndex {
         fm_index.kmer_lookup_table = kmer_lookup_table;
 
         if args.remove_intermediate_suffix_array_file {
-        std::fs::remove_file(Path::new(&suffix_array_src))?;
+            std::fs::remove_file(Path::new(&suffix_array_src))?;
         }
 
         return Ok(fm_index);
@@ -236,7 +236,7 @@ impl FmIndex {
                 if !search_range.is_empty() {
                     let query_symbol = Symbol::new_ascii(alphabet, query_char);
                     search_range = self.update_range_with_symbol(search_range, query_symbol);
-            }
+                }
             }
 
             return search_range;
@@ -315,7 +315,7 @@ impl FmIndex {
         let letter_prefix_sum = self.prefix_sums[query_symbol_idx];
         let new_start_ptr = letter_prefix_sum
             + self
-            .bwt
+                .bwt
                 .global_occurrence(search_range.start_ptr - 1, &query_symbol);
         let new_end_ptr = letter_prefix_sum
             + self
@@ -332,7 +332,7 @@ impl FmIndex {
     /// Finds the symbol that preceeds the given search pointer, used for finding the most recent sampled SA position.
     pub fn backstep(&self, search_pointer: SearchPtr) -> SearchPtr {
         let symbol = self.bwt.get_symbol_at(&search_pointer);
-        if symbol.is_sentinel(){
+        if symbol.is_sentinel() {
             return 0;
         }
         let symbol_prefix_sum = self.prefix_sums[symbol.index() as usize];
@@ -343,16 +343,9 @@ impl FmIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashMap,
-        io::Write,
-        path::Path,
-    };
+    use std::{collections::HashMap, io::Write, path::Path};
 
-    use rand::{
-        rngs::StdRng,
-        Rng, SeedableRng,
-    };
+    use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 
     use crate::alphabet::SymbolAlphabet;
 
@@ -413,9 +406,9 @@ mod tests {
         const FASTA_SRC: &str = "test_nucleotide.fasta";
         const FASTA_LINE_LEN: u8 = 80;
         const FASTA_SEQ_LEN: usize = 1847;
-        const NUCLEOTIDE_FASTA_SRC:&str = "test_nucleotide.fasta";
-        const SUFFIX_ARRAY_FILE_SRC:&str = "test_nucleotide.sufr";
-        const FM_INDEX_SRC:&str = "test_nucleotide.awry";
+        const NUCLEOTIDE_FASTA_SRC: &str = "test_nucleotide.fasta";
+        const SUFFIX_ARRAY_FILE_SRC: &str = "test_nucleotide.sufr";
+        const FM_INDEX_SRC: &str = "test_nucleotide.awry";
 
         gen_rand_nucleotide_file(&Path::new(FASTA_SRC), FASTA_LINE_LEN, FASTA_SEQ_LEN)
             .expect("unable to generate random nucleotide fasta");
@@ -480,6 +473,50 @@ mod tests {
         compare_index_to_reference(&fm_index, &suffix_array_file_src, TEST_KMER_LEN);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_fastq_input() -> anyhow::Result<()> {
+        const FASTQ_SRC:&str = "test.fastq";
+        const SUFFIX_ARRAY_SRC:&str = "test_fastq.sa";
+        const FM_INDEX_SRC:&str = "fastq.awry";
+
+        let num_sequences = 20;
+        let mut rng = thread_rng();
+        let sequence_lengths: Vec<u64> = (0..num_sequences)
+            .map(|_| rng.gen_range(21u64..59u64))
+            .collect();
+        let sequences = generate_random_fastq(FASTQ_SRC, sequence_lengths);
+
+        let fm_index = FmIndex::new(&FmBuildArgs {
+            input_file_src: FASTQ_SRC.to_owned(),
+            suffix_array_output_src: Some(SUFFIX_ARRAY_SRC.to_owned()),
+            suffix_array_compression_ratio: None,
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: false,
+        })
+        .expect("unable to build fm index");
+
+        //save the fm index to file
+        fm_index
+            .save(&Path::new(&FM_INDEX_SRC.to_owned()))
+            .expect("unable to save fm index to file");
+
+        can_find_all_kmers_in_fasq_index(&fm_index, &sequences);
+
+        Ok(())
+    }
+
+    fn can_find_all_kmers_in_fasq_index(fm_index:&FmIndex,  sequences:&Vec<String>){
+        for sequence in sequences{
+            for kmer_start_idx in 0..sequence.len(){
+                let query = sequence[kmer_start_idx..sequence.len()].to_owned();
+                let kmer_count = fm_index.count_string(&query);
+                assert_ne!(kmer_count, 0, "Kmer count returned zero for kmer in the database sequence list");
+            }
+        }
     }
 
     fn gen_rand_nucleotide_file(
@@ -559,6 +596,7 @@ mod tests {
         }
         .to_owned()
     }
+
     fn index_to_amino(index: u8) -> String {
         match index {
             0 => "A",
@@ -584,5 +622,40 @@ mod tests {
             _ => "X",
         }
         .to_owned()
+    }
+
+    fn generate_random_fastq(output_src: &str, seq_lengths: Vec<u64>) -> Vec<String> {
+        let mut sequences: Vec<String> = Vec::new();
+        let quality_char_set:Vec<char> = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~".chars().collect();
+        let nucleotides: Vec<char> = "AGCT".chars().collect();
+
+        let mut fastq_file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .read(false)
+            .open(output_src)
+            .expect("unable to open fastq file for writing");
+
+        let mut rng = thread_rng();
+        for seq_length in seq_lengths {
+            let sequence = (0..seq_length)
+                .map(|_| nucleotides.choose(&mut rng).unwrap())
+                .collect::<String>();
+            let quality_string = (0..seq_length)
+                .map(|_| quality_char_set.choose(&mut rng).unwrap())
+                .collect::<String>();
+
+            let header_string = format!("@dummy-0:{}+\n", seq_length);
+            fastq_file.write_all(header_string.as_bytes());
+            fastq_file.write_all(sequence.as_bytes());
+            fastq_file.write_all("\n".as_bytes());
+            fastq_file.write_all("+\n".as_bytes());
+            fastq_file.write_all(quality_string.as_bytes());
+            fastq_file.write_all("\n".as_bytes());
+
+            sequences.push(sequence);
+        }
+
+        return sequences;
     }
 }
