@@ -494,10 +494,10 @@ mod tests {
         const SUFFIX_ARRAY_SRC:&str = "test_fastq.sa";
         const FM_INDEX_SRC:&str = "fastq.awry";
 
-        let num_sequences = 20;
+        let num_sequences = 30;
         let mut rng = thread_rng();
         let sequence_lengths: Vec<u64> = (0..num_sequences)
-            .map(|_| rng.gen_range(21u64..59u64))
+            .map(|_| rng.gen_range(5u64..59u64))
             .collect();
         let sequences = generate_random_fastq(FASTQ_SRC, sequence_lengths);
 
@@ -540,8 +540,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
-            .create(true)
-            .read(false)
+            .truncate(true)
             .open(fasta_src)
             .expect("unable to open nucleotide fasta file for writing");
 
@@ -574,8 +573,7 @@ mod tests {
         rng.gen_range(0..21);
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
-            .create(true)
-            .read(false)
+            .truncate(true)
             .open(fasta_src)
             .expect("unable to open amino fasta file for writing");
 
@@ -644,8 +642,7 @@ mod tests {
 
         let mut fastq_file = std::fs::OpenOptions::new()
             .write(true)
-            .create(true)
-            .read(false)
+            .truncate(true)
             .open(output_src)
             .expect("unable to open fastq file for writing");
 
@@ -657,7 +654,7 @@ mod tests {
             let quality_string = (0..seq_length)
                 .map(|_| quality_char_set.choose(&mut rng).unwrap())
                 .collect::<String>();
-
+            
             let header_string = format!("@dummy-0:{}+\n", seq_length);
             fastq_file.write_all(header_string.as_bytes()).expect("could not write to fastq file");
             fastq_file.write_all(sequence.as_bytes()).expect("could not write to fastq file");
@@ -668,6 +665,7 @@ mod tests {
 
             sequences.push(sequence);
         }
+        fastq_file.flush().expect("unable to flush file");
 
         return sequences;
     }
