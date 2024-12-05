@@ -19,6 +19,7 @@ aligned = "0.4.2"
 reqwest = {version = "0.12.9",features = ["blocking"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 rand = "0.8.5"
+rng = "0.1.0"
 
 [lib]
 crate-type = ["lib"]
