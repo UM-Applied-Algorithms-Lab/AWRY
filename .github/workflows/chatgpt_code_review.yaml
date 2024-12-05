@@ -14,6 +14,8 @@ jobs:
     steps: 
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all history for accurate diffs
 
       - name: Debug File Changes
         run: git diff --name-only ${{ github.event.before }} ${{ github.sha }}
