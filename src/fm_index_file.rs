@@ -4,6 +4,7 @@ use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
 use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
 use crate::kmer_lookup_table::KmerLookupTable;
+use crate::sequence_index::SequenceIndex;
 use crate::simd_instructions::SimdVec256;
 use crate::{alphabet::SymbolAlphabet, bwt::Bwt};
 use std::convert::TryInto;
@@ -77,6 +78,8 @@ impl FmIndex {
             fm_index_file.write_all(&range.start_ptr.to_le_bytes())?;
             fm_index_file.write_all(&range.end_ptr.to_le_bytes())?;
         }
+
+        self.sequence_index().serialize(&mut fm_index_file).expect("unable to serialize sequence index");
 
         return Ok(());
     }
@@ -226,7 +229,9 @@ impl FmIndex {
 
                 let kmer_lookup_table = KmerLookupTable::from_file(fm_index_file, alphabet)?;
 
-                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, kmer_lookup_table, bwt_len, version_number));
+                //read in the sequence index
+                let sequence_index = SequenceIndex::from_file(fm_index_file).expect("unable to read sequence index from file");
+                return Ok(FmIndex::from_elements(bwt, prefix_sums, sampled_suffix_array, kmer_lookup_table, bwt_len, version_number, sequence_index));
             }
         }
     }
