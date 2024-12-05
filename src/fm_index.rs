@@ -541,6 +541,7 @@ mod tests {
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
+            .create(true)
             .open(fasta_src)
             .expect("unable to open nucleotide fasta file for writing");
 
@@ -574,6 +575,7 @@ mod tests {
         let mut fasta_file = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
+            .create(true)
             .open(fasta_src)
             .expect("unable to open amino fasta file for writing");
 
@@ -643,6 +645,7 @@ mod tests {
         let mut fastq_file = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
+            .create(true)
             .open(output_src)
             .expect("unable to open fastq file for writing");
 
