@@ -3,6 +3,7 @@ use std::path::Path;
 use aligned_vec::avec;
 use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
@@ -15,6 +16,7 @@ use crate::{
 
 pub const FM_VERSION_NUMBER: u64 = 1;
 
+// #[derive(Serialize, Deserialize, Debug)]
 ///Primary FM-index struct
 pub struct FmIndex {
     ///BWT-component of the FM-index
@@ -33,8 +35,10 @@ pub struct FmIndex {
     sequence_index: SequenceIndex,
 }
 
+
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
+#[derive(Serialize, Deserialize, Debug)]
 ///Arguments for builing an FM-index
 pub struct FmBuildArgs {
     ///file source for the input, either Fasta or Fastq format

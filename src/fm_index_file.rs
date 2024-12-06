@@ -5,7 +5,7 @@ use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
 use crate::kmer_lookup_table::KmerLookupTable;
 use crate::sequence_index::SequenceIndex;
-use crate::simd_instructions::SimdVec256;
+use crate::simd_instructions::AlignedVec256;
 use crate::{alphabet::SymbolAlphabet, bwt::Bwt};
 use std::convert::TryInto;
 use std::io::{self, Read};
@@ -40,7 +40,7 @@ impl FmIndex {
                         fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
                     for bit_vector in block.bit_vectors() {
-                        let bit_vector_values = bit_vector.to_u64s();
+                        let bit_vector_values = bit_vector.data();
                         for bit_vector_value in bit_vector_values {
                             fm_index_file.write_all(&bit_vector_value.to_le_bytes())?;
                         }
@@ -53,7 +53,7 @@ impl FmIndex {
                         fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
                     for bit_vector in block.bit_vectors() {
-                        let bit_vector_values = bit_vector.to_u64s();
+                        let bit_vector_values = bit_vector.data();
                         for bit_vector_value in bit_vector_values {
                             fm_index_file.write_all(&bit_vector_value.to_le_bytes())?;
                         }
@@ -179,7 +179,7 @@ impl FmIndex {
                             let mut bit_vector_buffer:[u8;32*NucleotideBwtBlock::NUM_BIT_VECTORS] = [0;32*NucleotideBwtBlock::NUM_BIT_VECTORS];
                             fm_index_file.read_exact(&mut bit_vector_buffer)?;
                             let buffer_ptr = bit_vector_buffer.as_ptr();
-                            let vector_ptr = buffer_ptr as *const SimdVec256;
+                            let vector_ptr = buffer_ptr as *const AlignedVec256;
                             let bit_vector_slice = unsafe{
                                  slice::from_raw_parts(vector_ptr, NucleotideBwtBlock::NUM_BIT_VECTORS)
                             };
@@ -203,7 +203,7 @@ impl FmIndex {
                             let mut bit_vector_buffer:[u8;32*AminoBwtBlock::NUM_BIT_VECTORS] = [0;32*AminoBwtBlock::NUM_BIT_VECTORS];
                             fm_index_file.read_exact(&mut bit_vector_buffer)?;
                             let buffer_ptr = bit_vector_buffer.as_ptr();
-                            let vector_ptr = buffer_ptr as *const SimdVec256;
+                            let vector_ptr = buffer_ptr as *const AlignedVec256;
                             let bit_vector_slice = unsafe{
                                 slice::from_raw_parts(vector_ptr, AminoBwtBlock::NUM_BIT_VECTORS)
                             };

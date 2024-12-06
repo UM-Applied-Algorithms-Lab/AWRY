@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 ///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
 #[derive(Debug, PartialEq, Eq)]
 pub enum SymbolEncoding {
@@ -7,7 +9,7 @@ pub enum SymbolEncoding {
 }
 
 ///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,

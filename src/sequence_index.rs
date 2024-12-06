@@ -1,11 +1,14 @@
 use anyhow::Ok;
 use libsufr::SequenceFileData;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 struct SequenceMetadata {
     start_position: usize,
     header: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SequenceIndex {
     sequences: Vec<SequenceMetadata>,
 }
