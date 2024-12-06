@@ -6,6 +6,7 @@ pub mod fm_index_file;
 pub mod kmer_lookup_table;
 pub mod search;
 pub mod simd_instructions;
+pub mod sequence_index;
 
 #[cfg(test)]
 mod tests {

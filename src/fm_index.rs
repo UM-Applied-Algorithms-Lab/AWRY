@@ -10,6 +10,7 @@ use crate::{
     compressed_suffix_array::CompressedSuffixArray,
     kmer_lookup_table::KmerLookupTable,
     search::{SearchPtr, SearchRange},
+    sequence_index::{LocalizedSequencePosition, SequenceIndex},
 };
 
 pub const FM_VERSION_NUMBER: u64 = 1;
@@ -28,6 +29,8 @@ pub struct FmIndex {
     bwt_len: u64,
     /// version number of this struct implementation
     version_number: u64,
+    /// sequence index storing the headers, start positions, and lengths of the sequences
+    sequence_index: SequenceIndex,
 }
 
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
@@ -40,15 +43,15 @@ pub struct FmBuildArgs {
     suffix_array_output_src: Option<String>,
     ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
     suffix_array_compression_ratio: Option<u8>,
-    ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory. 
+    ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory.
     /// If None, uses sensible defaults.
     lookup_table_kmer_len: Option<u8>,
     ///alphabet of the input text, and therefore the FM-index.
     alphabet: SymbolAlphabet,
-    ///Maximum length to allow for searching, or None for unlimited. Setting this slightly speeds up build times, 
+    ///Maximum length to allow for searching, or None for unlimited. Setting this slightly speeds up build times,
     /// but may fail if searching for longer queries than specified/
     max_query_len: Option<usize>,
-    ///If true, will delete the intermediate suffix array file when done. 
+    ///If true, will delete the intermediate suffix array file when done.
     /// This file is unnecessary for proper functionality of the FM-index.
     remove_intermediate_suffix_array_file: bool,
 }
@@ -69,6 +72,8 @@ impl FmIndex {
             b'X'
         };
         let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
+        let sequence_index = SequenceIndex::from_seq_file_data(&seq_data);
+
         let sufr_builder_args = SufrBuilderArgs {
             text: seq_data.seq,
             max_query_len: args.max_query_len,
@@ -161,6 +166,7 @@ impl FmIndex {
             kmer_lookup_table: KmerLookupTable::empty(lookup_table_kmer_len, args.alphabet),
             bwt_len,
             version_number: FM_VERSION_NUMBER,
+            sequence_index,
         };
 
         //now that the fm index has been generated, we can populate the kmer lookup table
@@ -183,6 +189,7 @@ impl FmIndex {
         kmer_lookup_table: KmerLookupTable,
         bwt_len: u64,
         version_number: u64,
+        sequence_index: SequenceIndex,
     ) -> FmIndex {
         FmIndex {
             bwt,
@@ -191,6 +198,7 @@ impl FmIndex {
             kmer_lookup_table,
             bwt_len,
             version_number,
+            sequence_index,
         }
     }
 
@@ -236,6 +244,9 @@ impl FmIndex {
     pub fn kmer_lookup_table(&self) -> &KmerLookupTable {
         return &self.kmer_lookup_table;
     }
+    pub fn sequence_index(&self) -> &SequenceIndex {
+        return &self.sequence_index;
+    }
 
     /// Finds the search range for the given query. This is the heart of the count() and locate() functions.
     pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
@@ -279,7 +290,7 @@ impl FmIndex {
     }
 
     // Finds the locations for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
-    pub fn parallel_locate(&self, queries: &Vec<String>) -> Vec<Vec<u64>> {
+    pub fn parallel_locate(&self, queries: &Vec<String>) -> Vec<Vec<LocalizedSequencePosition>> {
         queries
             .into_par_iter()
             .map(|query| self.locate_string(&query))
@@ -292,8 +303,8 @@ impl FmIndex {
     }
 
     /// Finds the locations in the original text of all isntances of the given query.
-    pub fn locate_string(&self, query: &String) -> Vec<u64> {
-        let mut string_locations: Vec<u64> = Vec::new();
+    pub fn locate_string(&self, query: &String) -> Vec<LocalizedSequencePosition> {
+        let mut string_locations: Vec<LocalizedSequencePosition> = Vec::new();
         let search_range = self.get_search_range_for_string(query);
 
         // backstep each location until we find a sampled position
@@ -312,7 +323,11 @@ impl FmIndex {
             let sequence_position = self.sampled_suffix_array.reconstruct_value(backstep_position as usize).expect("unable to read from the given suffix array position, this is likely an implementation bug or corrupted data.");
             let location = (sequence_position + num_backsteps_taken) % self.bwt_len;
 
-            string_locations.push(location);
+            let localized_position: LocalizedSequencePosition = self
+                .sequence_index
+                .get_seq_location(location as usize)
+                .expect("unable to find sequence location for given position");
+            string_locations.push(localized_position);
         }
 
         string_locations
@@ -356,7 +371,7 @@ impl FmIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io::Write, path::Path};
+    use std::{collections::HashMap, io::Write, ops::Range, path::Path};
 
     use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 
@@ -408,7 +423,7 @@ mod tests {
             );
 
             for i in 0..locate_result.len() {
-                assert_eq!(locate_result[i] as usize , reference_positions[i], "position did not match in lists between locate results and reference positions");
+                assert_eq!(locate_result[i].local_position() as usize , reference_positions[i], "position did not match in lists between locate results and reference positions");
             }
         }
     }
@@ -490,9 +505,9 @@ mod tests {
 
     #[test]
     fn test_fastq_input() -> anyhow::Result<()> {
-        const FASTQ_SRC:&str = "test.fastq";
-        const SUFFIX_ARRAY_SRC:&str = "test_fastq.sa";
-        const FM_INDEX_SRC:&str = "fastq.awry";
+        const FASTQ_SRC: &str = "test.fastq";
+        const SUFFIX_ARRAY_SRC: &str = "test_fastq.sa";
+        const FM_INDEX_SRC: &str = "fastq.awry";
 
         let num_sequences = 30;
         let mut rng = thread_rng();
@@ -522,12 +537,15 @@ mod tests {
         Ok(())
     }
 
-    fn can_find_all_kmers_in_fasq_index(fm_index:&FmIndex,  sequences:&Vec<String>){
-        for sequence in sequences{
-            for kmer_start_idx in 0..sequence.len(){
+    fn can_find_all_kmers_in_fasq_index(fm_index: &FmIndex, sequences: &Vec<String>) {
+        for sequence in sequences {
+            for kmer_start_idx in 0..sequence.len() {
                 let query = sequence[kmer_start_idx..sequence.len()].to_owned();
                 let kmer_count = fm_index.count_string(&query);
-                assert_ne!(kmer_count, 0, "Kmer count returned zero for kmer in the database sequence list");
+                assert_ne!(
+                    kmer_count, 0,
+                    "Kmer count returned zero for kmer in the database sequence list"
+                );
             }
         }
     }
@@ -657,19 +675,133 @@ mod tests {
             let quality_string = (0..seq_length)
                 .map(|_| quality_char_set.choose(&mut rng).unwrap())
                 .collect::<String>();
-            
+
             let header_string = format!("@dummy-0:{}+\n", seq_length);
-            fastq_file.write_all(header_string.as_bytes()).expect("could not write to fastq file");
-            fastq_file.write_all(sequence.as_bytes()).expect("could not write to fastq file");
-            fastq_file.write_all("\n".as_bytes()).expect("could not write to fastq file");
-            fastq_file.write_all("+\n".as_bytes()).expect("could not write to fastq file");
-            fastq_file.write_all(quality_string.as_bytes()).expect("could not write to fastq file");
-            fastq_file.write_all("\n".as_bytes()).expect("could not write to fastq file");
+            fastq_file
+                .write_all(header_string.as_bytes())
+                .expect("could not write to fastq file");
+            fastq_file
+                .write_all(sequence.as_bytes())
+                .expect("could not write to fastq file");
+            fastq_file
+                .write_all("\n".as_bytes())
+                .expect("could not write to fastq file");
+            fastq_file
+                .write_all("+\n".as_bytes())
+                .expect("could not write to fastq file");
+            fastq_file
+                .write_all(quality_string.as_bytes())
+                .expect("could not write to fastq file");
+            fastq_file
+                .write_all("\n".as_bytes())
+                .expect("could not write to fastq file");
 
             sequences.push(sequence);
         }
         fastq_file.flush().expect("unable to flush file");
 
         return sequences;
+    }
+
+    fn gen_multi_sequence_nucleotide_fasta(
+        file_src: &Path,
+        line_len: u8,
+        num_sequences: usize,
+        sequence_length_range: Range<usize>,
+    ) -> anyhow::Result<Vec<String>> {
+        let mut rng = StdRng::seed_from_u64(999);
+        let mut fasta_file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file_src)
+            .expect("unable to open fastq file for writing");
+
+        let mut sequences: Vec<String> = Vec::new();
+
+        for seq_idx in 0..num_sequences {
+            //write a fasta header to file
+            fasta_file
+                .write(format!(">sequence_{}", seq_idx).as_bytes())
+                .expect("could not write to fastq file");
+
+            let sequence_length = thread_rng().gen_range(sequence_length_range.clone());
+            let sequence = (0..sequence_length)
+                .map(|_| index_to_nucleotide(rng.gen_range(0..4)))
+                .collect::<String>();
+
+            for letter_idx in 0..sequence_length {
+                //write ascii letter at letter_idx in sequence
+                if letter_idx % line_len as usize == 0 {
+                    fasta_file.write("\n".to_owned().as_bytes())?;
+                }
+                fasta_file.write(
+                    sequence
+                        .chars()
+                        .nth(letter_idx)
+                        .unwrap()
+                        .to_string()
+                        .as_bytes(),
+                )?;
+            }
+            fasta_file.write("\n".to_owned().as_bytes())?;
+
+            sequences.push(sequence);
+        }
+        //todo, return the strings
+        Ok(sequences)
+    }
+
+    #[test]
+    fn multi_sequence_fasta_test() -> anyhow::Result<()> {
+        const FASTA_SRC: &str = "test_multi_sequence.fasta";
+        const SUFFIX_ARRAY_SRC: &str = "test_multi_sequence.sufr";
+        const FM_INDEX_SRC: &str = "test_multi_sequence.awry";
+        const FASTA_LINE_LEN: u8 = 80;
+        const NUM_SEQUENCES: usize = 24;
+        const SEQUENCE_LENGTH_RANGE: Range<usize> = 10..20;
+
+        let sequences = gen_multi_sequence_nucleotide_fasta(
+            &Path::new(FASTA_SRC),
+            FASTA_LINE_LEN,
+            NUM_SEQUENCES,
+            SEQUENCE_LENGTH_RANGE,
+        )
+        .expect("unable to generate random nucleotide fasta");
+
+        //create the fm index
+        let fm_index = FmIndex::new(&FmBuildArgs {
+            input_file_src: FASTA_SRC.to_owned(),
+            suffix_array_output_src: Some(SUFFIX_ARRAY_SRC.to_owned()),
+            suffix_array_compression_ratio: None,
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: false,
+        })
+        .expect("unable to build fm index");
+
+        //save the fm index to file
+        fm_index
+            .save(&Path::new(&FM_INDEX_SRC))
+            .expect("unable to save fm index to file");
+
+        //create map of kmer->Vec<position>
+        find_kmers_in_reference(&fm_index, sequences);
+
+        Ok(())
+    }
+
+    fn find_kmers_in_reference(fm_index: &FmIndex, sequences: Vec<String>) {
+        for sequence in sequences {
+            for kmer_start_idx in 0..sequence.len() {
+                let query = sequence[kmer_start_idx..sequence.len()].to_owned();
+                let kmer_count = fm_index.count_string(&query);
+                assert_ne!(
+                    kmer_count, 0,
+                    "Kmer count returned zero for kmer in the database sequence list"
+                );
+            }
+        }
     }
 }
