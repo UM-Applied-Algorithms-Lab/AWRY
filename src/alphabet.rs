@@ -15,6 +15,15 @@ pub enum SymbolAlphabet {
     Amino,
 }
 
+impl SymbolAlphabet{
+    pub fn alphabet_id(&self) -> u8{
+        match self{
+            SymbolAlphabet::Nucleotide => 0,
+            SymbolAlphabet::Amino => 1,
+        }
+    }
+}
+
 ///Implementation of a symbol, from a given alphabet, with a given encoding.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Symbol {
