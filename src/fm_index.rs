@@ -371,7 +371,7 @@ impl FmIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io::Write, path::Path};
+    use std::{collections::HashMap, io::Write, ops::Range, path::Path};
 
     use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 
@@ -701,5 +701,107 @@ mod tests {
         fastq_file.flush().expect("unable to flush file");
 
         return sequences;
+    }
+
+    fn gen_multi_sequence_nucleotide_fasta(
+        file_src: &Path,
+        line_len: u8,
+        num_sequences: usize,
+        sequence_length_range: Range<usize>,
+    ) -> anyhow::Result<Vec<String>> {
+        let mut rng = StdRng::seed_from_u64(999);
+        let mut fasta_file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file_src)
+            .expect("unable to open fastq file for writing");
+
+        let mut sequences: Vec<String> = Vec::new();
+
+        for seq_idx in 0..num_sequences {
+            //write a fasta header to file
+            fasta_file
+                .write(format!(">sequence_{}", seq_idx).as_bytes())
+                .expect("could not write to fastq file");
+
+            let sequence_length = thread_rng().gen_range(sequence_length_range.clone());
+            let sequence = (0..sequence_length)
+                .map(|_| index_to_nucleotide(rng.gen_range(0..4)))
+                .collect::<String>();
+
+            for letter_idx in 0..sequence_length {
+                //write ascii letter at letter_idx in sequence
+                if letter_idx % line_len as usize == 0 {
+                    fasta_file.write("\n".to_owned().as_bytes())?;
+                }
+                fasta_file.write(
+                    sequence
+                        .chars()
+                        .nth(letter_idx)
+                        .unwrap()
+                        .to_string()
+                        .as_bytes(),
+                )?;
+            }
+            fasta_file.write("\n".to_owned().as_bytes())?;
+
+            sequences.push(sequence);
+        }
+        //todo, return the strings
+        Ok(sequences)
+    }
+
+    #[test]
+    fn multi_sequence_fasta_test() -> anyhow::Result<()> {
+        const FASTA_SRC: &str = "test_multi_sequence.fasta";
+        const SUFFIX_ARRAY_SRC: &str = "test_multi_sequence.sufr";
+        const FM_INDEX_SRC: &str = "test_multi_sequence.awry";
+        const FASTA_LINE_LEN: u8 = 80;
+        const NUM_SEQUENCES: usize = 24;
+        const SEQUENCE_LENGTH_RANGE: Range<usize> = 10..20;
+
+        let sequences = gen_multi_sequence_nucleotide_fasta(
+            &Path::new(FASTA_SRC),
+            FASTA_LINE_LEN,
+            NUM_SEQUENCES,
+            SEQUENCE_LENGTH_RANGE,
+        )
+        .expect("unable to generate random nucleotide fasta");
+
+        //create the fm index
+        let fm_index = FmIndex::new(&FmBuildArgs {
+            input_file_src: FASTA_SRC.to_owned(),
+            suffix_array_output_src: Some(SUFFIX_ARRAY_SRC.to_owned()),
+            suffix_array_compression_ratio: None,
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: false,
+        })
+        .expect("unable to build fm index");
+
+        //save the fm index to file
+        fm_index
+            .save(&Path::new(&FM_INDEX_SRC))
+            .expect("unable to save fm index to file");
+
+        //create map of kmer->Vec<position>
+        find_kmers_in_reference(&fm_index, sequences);
+
+        Ok(())
+    }
+
+    fn find_kmers_in_reference(fm_index: &FmIndex, sequences: Vec<String>) {
+        for sequence in sequences {
+            for kmer_start_idx in 0..sequence.len() {
+                let query = sequence[kmer_start_idx..sequence.len()].to_owned();
+                let kmer_count = fm_index.count_string(&query);
+                assert_ne!(
+                    kmer_count, 0,
+                    "Kmer count returned zero for kmer in the database sequence list"
+                );
+            }
+        }
     }
 }
