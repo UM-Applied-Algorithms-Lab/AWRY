@@ -22,6 +22,13 @@ impl SymbolAlphabet{
             SymbolAlphabet::Amino => 1,
         }
     }
+    pub fn from_id(id: u8) -> Self{
+        match id{
+            0=>SymbolAlphabet::Nucleotide,
+            1=>SymbolAlphabet::Amino,
+            _=>panic!("invalid alphabet id given"),
+        }
+    }
 }
 
 ///Implementation of a symbol, from a given alphabet, with a given encoding.
