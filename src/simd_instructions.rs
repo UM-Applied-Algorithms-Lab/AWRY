@@ -10,14 +10,28 @@ use std::arch::aarch64::{
     vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64,
 };
 
-///Data vector aligned for proper use with 256-bit SIMD instructions.
-#[repr(align(32))]
-pub struct AlignedVectorArray {
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug, Copy)]
+pub struct Vec256 {
     data: [u64; 4],
 }
-impl AlignedVectorArray {
+impl Vec256 {
     pub fn new() -> Self {
-        AlignedVectorArray { data: [0; 4] }
+        Vec256 { data: [0; 4] }
+    }
+    pub fn extract_bit(&self, bit_idx: &u64) -> u64 {
+        let word_idx = bit_idx / 64;
+        let bit_idx = bit_idx % 64;
+        return self.data[word_idx as usize] >> bit_idx & 1;
+    }
+    pub fn set_bit(&mut self, bit_idx: &u64) {
+        let word_idx = bit_idx / 64;
+        let bit_idx = bit_idx % 64;
+        self.data[word_idx as usize] |= 1 << bit_idx;
+    }
+    pub fn data(&self) -> &[u64; 4] {
+        &self.data
     }
 }
 
@@ -28,6 +42,17 @@ pub struct SimdVec256 {
     pub data: __m256i,
 }
 
+#[cfg(target_arch = "x86_64")]
+impl From<Vec256> for SimdVec256 {
+    fn from(value: Vec256) -> Self {
+        unsafe {
+            SimdVec256 {
+                data: _mm256_load_si256(value.data.as_ptr() as *const __m256i),
+            }
+        }
+    }
+}
+
 #[cfg(target_arch = "aarch64")]
 #[derive(Debug, Clone, Copy)]
 ///Struct containing an ARM-Neon 256-bit vector on ARM(made up of 2 128-bit lanes)
@@ -35,15 +60,19 @@ pub struct SimdVec256 {
     pub data: uint64x2x2_t,
 }
 
-#[cfg(target_arch = "x86_64")]
-impl SimdVec256 {
-    pub fn new(vec_data: &AlignedVectorArray) -> Self {
+#[cfg(target_arch = "aarch64")]
+impl From<Vec256> for SimdVec256 {
+    fn from(value: Vec256) -> Self {
         unsafe {
             SimdVec256 {
-                data: _mm256_load_si256(vec_data.data.as_ptr() as *const __m256i),
+                data: vld1q_u64_x2(value.data.as_ptr() as *const u64),
             }
         }
     }
+}
+
+#[cfg(target_arch = "x86_64")]
+impl SimdVec256 {
     pub fn zero() -> Self {
         unsafe {
             SimdVec256 {
@@ -53,7 +82,7 @@ impl SimdVec256 {
     }
 
     pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = AlignedVectorArray::new();
+        let mut vals = Vec256::new();
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
@@ -102,7 +131,6 @@ impl SimdVec256 {
         return popcount;
     }
 
-
     ///Gets the value of the bit at the given bit index of the vector. The value is shifted into bit0, so returns 0 or 1.
     pub fn get_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
@@ -121,7 +149,7 @@ impl SimdVec256 {
 
     ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = AlignedVectorArray::new();
+        let mut array = Vec256::new();
         unsafe {
             _mm256_storeu_si256(array.data.as_mut_ptr() as *mut __m256i, self.data);
         }
@@ -132,14 +160,7 @@ impl SimdVec256 {
 
 #[cfg(target_arch = "aarch64")]
 impl SimdVec256 {
-    pub fn new(vec_data: &AlignedVectorArray) -> Self {
-        unsafe {
-            SimdVec256 {
-                data: vld1q_u64_x2(vec_data.data.as_ptr() as *const u64),
-            }
-        }
-    }
-    pub fn zero() -> Self {
+    pub fn new() -> Self {
         unsafe {
             SimdVec256 {
                 data: uint64x2x2_t(vdupq_n_u64(0), vdupq_n_u64(0)),
@@ -148,7 +169,7 @@ impl SimdVec256 {
     }
 
     pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = AlignedVectorArray::new();
+        let mut vals = Vec256::new();
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
@@ -240,7 +261,7 @@ impl SimdVec256 {
 
     ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = AlignedVectorArray::new();
+        let mut array = Vec256::new();
         unsafe {
             vst1q_u64(array.data.as_mut_ptr(), self.data.0);
             vst1q_u64(array.data.as_mut_ptr().add(2), self.data.1);

@@ -1,25 +1,28 @@
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     search::SearchPtr,
-    simd_instructions::SimdVec256,
+    simd_instructions::{Vec256, SimdVec256},
 };
-use aligned_vec::{AVec, ConstAlign};
+use serde::{Deserialize, Serialize};
 
 pub const SIMD_ALIGNMENT_BYTES: usize = 32;
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[repr(align(32))]
 pub struct NucleotideBwtBlock {
+    bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     milestones: [u64; Self::NUM_MILESTONES],
-    bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[repr(align(32))]
 pub struct AminoBwtBlock {
+    bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     milestones: [u64; Self::NUM_MILESTONES],
-    bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
 }
+
 
 impl NucleotideBwtBlock {
     pub const NUM_MILESTONES: usize = 8;
@@ -30,14 +33,14 @@ impl NucleotideBwtBlock {
     pub fn new() -> Self {
         NucleotideBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
-            bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
+            bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
         }
     }
 
     ///creates a bwt block from the given milestone and bit-vector data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
-        bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
+        bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     ) -> Self {
         NucleotideBwtBlock {
             milestones,
@@ -50,7 +53,7 @@ impl NucleotideBwtBlock {
         let mut bit_vector_encoding: u64 = 0;
 
         for bit in 0..self.bit_vectors.len() {
-            let bit_value = self.bit_vectors[bit].get_bit(&position_block);
+            let bit_value = self.bit_vectors[bit].extract_bit(&position_block);
             bit_vector_encoding |= bit_value << bit;
         }
 
@@ -58,15 +61,13 @@ impl NucleotideBwtBlock {
     }
 
     pub fn set_symbol_at(&mut self, symbol:&Symbol, position_in_block: u64){
-        //create a bitmask, we'll use this to set the bit with an OR operation
-        let vector_bitmask = SimdVec256::as_one_hot(position_in_block);
         let mut encoded_symbol = symbol.bit_vector();
 
         //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
             if encoded_symbol & 0x1 == 1 {
-                self.bit_vectors[bit_vector_idx] = self.bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                self.bit_vectors[bit_vector_idx].set_bit(&position_in_block);
             }
             encoded_symbol >>= 1;
             bit_vector_idx += 1;
@@ -94,7 +95,7 @@ impl NucleotideBwtBlock {
         &self.milestones
     }
     /// gets a reference to the bit_vectors array
-    pub fn bit_vectors(&self) -> &[SimdVec256] {
+    pub fn bit_vectors(&self) -> &[Vec256] {
         &self.bit_vectors
     }
 
@@ -104,13 +105,15 @@ impl NucleotideBwtBlock {
     #[inline]
     pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
         let milestone_count = self.get_milestone(&symbol);
-        let vectors = &self.bit_vectors;
+        let vec0 = SimdVec256::from(self.bit_vectors[0]);
+        let vec1 = SimdVec256::from(self.bit_vectors[1]);
+        let vec2 = SimdVec256::from(self.bit_vectors[2]);
         let occurrence_vector = match &symbol.index() {
-            1 => vectors[2].and(&vectors[1]), //A:    0b110
-            2 => vectors[2].and(&vectors[0]), //C:    0b101
-            3 => vectors[1].and(&vectors[0]), //G:    0b011
-            4 => vectors[2].andnot(&vectors[0].andnot(&vectors[1])), //N:    0b010
-            5 => vectors[2].andnot(&vectors[1].andnot(&vectors[0])), //T:    0b001
+            1 => vec2.and(&vec1), //A:    0b110
+            2 => vec2.and(&vec0), //C:    0b101
+            3 => vec1.and(&vec0), //G:    0b011
+            4 => vec2.andnot(&vec0.andnot(&vec1)), //N:    0b010
+            5 => vec2.andnot(&vec1.andnot(&vec0)), //T:    0b001
             _ => {
                 panic!("illegal letter index given in global occurrence function symbol idx given: {}", symbol.index());
             } //assume every other character is an N, since it's illegal to search for a sentinel
@@ -131,14 +134,14 @@ impl AminoBwtBlock {
     pub fn new() -> Self {
         AminoBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
-            bit_vectors: [SimdVec256::zero(); Self::NUM_BIT_VECTORS],
+            bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
         }
     }
 
     /// create a new bwt block from the given data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
-        bit_vectors: [SimdVec256; Self::NUM_BIT_VECTORS],
+        bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     ) -> Self {
         AminoBwtBlock {
             milestones,
@@ -151,7 +154,7 @@ impl AminoBwtBlock {
         let mut bit_vector_encoding: u64 = 0;
 
         for bit in 0..self.bit_vectors.len() {
-            let bit_value = self.bit_vectors[bit].get_bit(&position_block);
+            let bit_value = self.bit_vectors[bit].extract_bit(&position_block);
             bit_vector_encoding |= bit_value << bit;
         }
 
@@ -159,16 +162,15 @@ impl AminoBwtBlock {
     }
 
     ///Sets the symbol at the given position in the BWT block.
-    pub fn set_symbol_at(&mut self, symbol:&Symbol, position_block: u64){
+    pub fn set_symbol_at(&mut self, symbol:&Symbol, position_in_block: u64){
         //create a bitmask, we'll use this to set the bit with an OR operation
-        let vector_bitmask = SimdVec256::as_one_hot(position_block);
         let mut encoded_symbol = symbol.bit_vector();
 
         //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
         while encoded_symbol != 0 {
             if encoded_symbol & 0x1 == 1 {
-                self.bit_vectors[bit_vector_idx] = self.bit_vectors[bit_vector_idx].or(&vector_bitmask);
+                self.bit_vectors[bit_vector_idx].set_bit(&position_in_block);
             }
             encoded_symbol >>= 1;
             bit_vector_idx += 1;
@@ -198,7 +200,7 @@ impl AminoBwtBlock {
     }
 
     /// returns a slice view of the bit_vectors for this block
-    pub fn bit_vectors(&self) -> &[SimdVec256; Self::NUM_BIT_VECTORS] {
+    pub fn bit_vectors(&self) -> &[Vec256; Self::NUM_BIT_VECTORS] {
         &self.bit_vectors
     }
 
@@ -208,29 +210,33 @@ impl AminoBwtBlock {
     #[inline]
     pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let milestone_count = self.get_milestone(symbol);
-        let vecs = &self.bit_vectors;
+        let vec0 = SimdVec256::from(self.bit_vectors[0]);
+        let vec1 = SimdVec256::from(self.bit_vectors[1]);
+        let vec2 = SimdVec256::from(self.bit_vectors[2]);
+        let vec3 = SimdVec256::from(self.bit_vectors[3]);   
+        let vec4 = SimdVec256::from(self.bit_vectors[4]);
         let occurrence_vector = match symbol.index() {
-            1 => vecs[3].and(&vecs[4].andnot(&vecs[2])), //A:    0b01100
-            2 => vecs[3].andnot(&vecs[2]).and(&vecs[1].and(&vecs[0])), //C:    0b10111
-            3 => vecs[1].and(&vecs[4].andnot(&vecs[0])), //D:    0b00011
-            4 => vecs[4].andnot(&vecs[2].and(&vecs[1])), //E: 0b00110
-            5 => vecs[0].andnot(&vecs[3]).and(&vecs[2].and(&vecs[1])), //F:    0b11110
-            6 => vecs[2].andnot(&vecs[0].andnot(&vecs[4])), //G:    0b11010
-            7 => vecs[2].andnot(&vecs[3]).and(&vecs[1].and(&vecs[0])), //H: 0b11011
-            8 => vecs[2].andnot(&vecs[1].andnot(&vecs[4])), //I:    0b11001
-            9 => vecs[3].andnot(&vecs[1].andnot(&vecs[4])), //K:    0b10101
-            10 => vecs[1].andnot(&vecs[0].andnot(&vecs[4])), //L:    0b11100
-            11 => vecs[1].andnot(&vecs[3]).and(&vecs[2].and(&vecs[0])), //M:    0b11101
-            12 => vecs[0].or(&vecs[1]).andnot(&vecs[2].andnot(&vecs[3])), //N:    0b01000
-            13 => vecs[3].and(&vecs[4].andnot(&vecs[0])), //P:    0b01001,
-            14 => vecs[3].or(&vecs[1]).andnot(&vecs[0].andnot(&vecs[2])), //Q:    0b00100
-            15 => vecs[3].andnot(&vecs[2].andnot(&vecs[4])), //R:    0b10011
-            16 => vecs[3].and(&vecs[4].andnot(&vecs[1])), //S:    0b01010
-            17 => vecs[2].and(&vecs[4].andnot(&vecs[0])), //T:    0b00101
-            18 => vecs[3].andnot(&vecs[0].andnot(&vecs[4])), //V:    0b10110
-            19 => vecs[3].or(&vecs[2]).andnot(&vecs[1].andnot(&vecs[0])), //W:    0b00001
-            20 => vecs[3].and(&vecs[2]).and(&vecs[1].and(&vecs[0])), //Ambiguity character X:  0b11111
-            21 => vecs[0].or(&vecs[2]).andnot(&vecs[3].andnot(&vecs[1])), //Y:    0b00010
+            1 => vec3.and(&vec4.andnot(&vec2)), //A:    0b01100
+            2 => vec3.andnot(&vec2).and(&vec1.and(&vec0)), //C:    0b10111
+            3 => vec1.and(&vec4.andnot(&vec0)), //D:    0b00011
+            4 => vec4.andnot(&vec2.and(&vec1)), //E: 0b00110
+            5 => vec0.andnot(&vec3).and(&vec2.and(&vec1)), //F:    0b11110
+            6 => vec2.andnot(&vec0.andnot(&vec4)), //G:    0b11010
+            7 => vec2.andnot(&vec3).and(&vec1.and(&vec0)), //H: 0b11011
+            8 => vec2.andnot(&vec1.andnot(&vec4)), //I:    0b11001
+            9 => vec3.andnot(&vec1.andnot(&vec4)), //K:    0b10101
+            10 => vec1.andnot(&vec0.andnot(&vec4)), //L:    0b11100
+            11 => vec1.andnot(&vec3).and(&vec2.and(&vec0)), //M:    0b11101
+            12 => vec0.or(&vec1).andnot(&vec2.andnot(&vec3)), //N:    0b01000
+            13 => vec3.and(&vec4.andnot(&vec0)), //P:    0b01001,
+            14 => vec3.or(&vec1).andnot(&vec0.andnot(&vec2)), //Q:    0b00100
+            15 => vec3.andnot(&vec2.andnot(&vec4)), //R:    0b10011
+            16 => vec3.and(&vec4.andnot(&vec1)), //S:    0b01010
+            17 => vec2.and(&vec4.andnot(&vec0)), //T:    0b00101
+            18 => vec3.andnot(&vec0.andnot(&vec4)), //V:    0b10110
+            19 => vec3.or(&vec2).andnot(&vec1.andnot(&vec0)), //W:    0b00001
+            20 => vec3.and(&vec2).and(&vec1.and(&vec0)), //Ambiguity character X:  0b11111
+            21 => vec0.or(&vec2).andnot(&vec3.andnot(&vec1)), //Y:    0b00010
             // 0b00000 is sentinel, but since you can't search for sentinels, it is not included here.
             _ => {
                 panic!("illegal letter index given in global occurrence function");
@@ -244,10 +250,14 @@ impl AminoBwtBlock {
 }
 
 /// enum representing a BWT, either as Nucleotide symbols or Amino symbols
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Bwt {
-    Nucleotide(AVec<NucleotideBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
-    Amino(AVec<AminoBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
+    Nucleotide(Vec<NucleotideBwtBlock>),
+    Amino(Vec<AminoBwtBlock>),
 }
+
+
 
 impl Bwt {
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
@@ -286,7 +296,7 @@ impl Bwt {
                 let bwt_block = &vec[position_block_idx as usize];
 
                 for bit in 0..bwt_block.bit_vectors.len() {
-                    let bit_value = bwt_block.bit_vectors[bit].get_bit(&position_in_block);
+                    let bit_value = bwt_block.bit_vectors[bit].extract_bit(&position_in_block);
                     bit_vector_encoding |= bit_value << bit;
                 }
 
@@ -298,7 +308,7 @@ impl Bwt {
                 let bwt_block = &vec[position_block_idx as usize];
 
                 for bit in 0..bwt_block.bit_vectors.len() {
-                    let bit_value = bwt_block.bit_vectors[bit].get_bit(&position_in_block);
+                    let bit_value = bwt_block.bit_vectors[bit].extract_bit(&position_in_block);
                     bit_vector_encoding |= bit_value << bit;
                 }
 
@@ -341,7 +351,7 @@ mod tests {
     use std::collections::HashMap;
     use rand::{Rng, SeedableRng};
 
-    use crate::{alphabet::{Symbol, SymbolAlphabet}, simd_instructions::SimdVec256};
+    use crate::{alphabet::{Symbol, SymbolAlphabet}, simd_instructions::Vec256};
     use super::{AminoBwtBlock, NucleotideBwtBlock};
 
     #[test]
@@ -350,7 +360,7 @@ mod tests {
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [SimdVec256::zero();3],
+            [Vec256::new();3],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -374,7 +384,7 @@ mod tests {
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [SimdVec256::zero();3],
+            [Vec256::new();3],
             
         );
         let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(2);
@@ -426,7 +436,7 @@ mod tests {
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [SimdVec256::zero();5],
+            [Vec256::new();5],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -452,7 +462,7 @@ mod tests {
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [SimdVec256::zero();5],
+            [Vec256::new();5],
         );
 
         let mut counts:HashMap<(u64,u8), u64> = HashMap::new();

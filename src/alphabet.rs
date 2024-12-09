@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 ///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
 #[derive(Debug, PartialEq, Eq)]
 pub enum SymbolEncoding {
@@ -7,10 +9,26 @@ pub enum SymbolEncoding {
 }
 
 ///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,
+}
+
+impl SymbolAlphabet{
+    pub fn alphabet_id(&self) -> u8{
+        match self{
+            SymbolAlphabet::Nucleotide => 0,
+            SymbolAlphabet::Amino => 1,
+        }
+    }
+    pub fn from_id(id: u8) -> Self{
+        match id{
+            0=>SymbolAlphabet::Nucleotide,
+            1=>SymbolAlphabet::Amino,
+            _=>panic!("invalid alphabet id given"),
+        }
+    }
 }
 
 ///Implementation of a symbol, from a given alphabet, with a given encoding.

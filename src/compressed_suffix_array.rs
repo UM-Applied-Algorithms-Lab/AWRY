@@ -1,6 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 /// Struct representing a sampled suffix array. Sampling the suffix array reduces the memory requirement, while still being able to reconstruct
 /// the original position when used in conjunction with the rest of the FM-index.
 /// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
     data: Vec<u64>,

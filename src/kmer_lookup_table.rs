@@ -3,14 +3,16 @@ use std::{
     io::{Error, Read},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     fm_index::FmIndex,
     search::SearchRange,
 };
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
 ///Table storing precomputed SearchRanges for all kmers of a given length.
-#[derive(Clone)]
 pub struct KmerLookupTable {
     range_table: Vec<SearchRange>,
     kmer_len: u8,
