@@ -12,15 +12,13 @@ use std::arch::aarch64::{
 
 use serde::{Deserialize, Serialize};
 
-///Data vector aligned for proper use with 256-bit SIMD instructions.
-#[repr(align(32))]
 #[derive(Clone, Serialize, Deserialize, Debug, Copy)]
-pub struct AlignedVec256 {
+pub struct Vec256 {
     data: [u64; 4],
 }
-impl AlignedVec256 {
+impl Vec256 {
     pub fn new() -> Self {
-        AlignedVec256 { data: [0; 4] }
+        Vec256 { data: [0; 4] }
     }
     pub fn extract_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
@@ -45,8 +43,8 @@ pub struct SimdVec256 {
 }
 
 #[cfg(target_arch = "x86_64")]
-impl From<AlignedVec256> for SimdVec256 {
-    fn from(value: AlignedVec256) -> Self {
+impl From<Vec256> for SimdVec256 {
+    fn from(value: Vec256) -> Self {
         unsafe {
             SimdVec256 {
                 data: _mm256_load_si256(value.data.as_ptr() as *const __m256i),
@@ -63,8 +61,8 @@ pub struct SimdVec256 {
 }
 
 #[cfg(target_arch = "aarch64")]
-impl From<AlignedVec256> for SimdVec256 {
-    fn from(value: AlignedVec256) -> Self {
+impl From<Vec256> for SimdVec256 {
+    fn from(value: Vec256) -> Self {
         unsafe {
             SimdVec256 {
                 data: vld1q_u64_x2(value.data.as_ptr() as *const u64),
@@ -84,7 +82,7 @@ impl SimdVec256 {
     }
 
     pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = AlignedVec256::new();
+        let mut vals = Vec256::new();
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
@@ -151,7 +149,7 @@ impl SimdVec256 {
 
     ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = AlignedVec256::new();
+        let mut array = Vec256::new();
         unsafe {
             _mm256_storeu_si256(array.data.as_mut_ptr() as *mut __m256i, self.data);
         }
@@ -171,7 +169,7 @@ impl SimdVec256 {
     }
 
     pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = AlignedVec256::new();
+        let mut vals = Vec256::new();
         vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
         unsafe {
             SimdVec256 {
@@ -263,7 +261,7 @@ impl SimdVec256 {
 
     ///Returns the SIMD vector as an array of 4 u64s
     pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = AlignedVec256::new();
+        let mut array = Vec256::new();
         unsafe {
             vst1q_u64(array.data.as_mut_ptr(), self.data.0);
             vst1q_u64(array.data.as_mut_ptr().add(2), self.data.1);

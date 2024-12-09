@@ -1,25 +1,26 @@
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     search::SearchPtr,
-    simd_instructions::{AlignedVec256, SimdVec256},
+    simd_instructions::{Vec256, SimdVec256},
 };
-use aligned_vec::{AVec, ConstAlign};
 use serde::{Deserialize, Serialize};
 
 pub const SIMD_ALIGNMENT_BYTES: usize = 32;
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[repr(align(32))]
 pub struct NucleotideBwtBlock {
+    bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     milestones: [u64; Self::NUM_MILESTONES],
-    bit_vectors: [AlignedVec256; Self::NUM_BIT_VECTORS],
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[repr(align(32))]
 pub struct AminoBwtBlock {
+    bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     milestones: [u64; Self::NUM_MILESTONES],
-    bit_vectors: [AlignedVec256; Self::NUM_BIT_VECTORS],
 }
 
 
@@ -32,14 +33,14 @@ impl NucleotideBwtBlock {
     pub fn new() -> Self {
         NucleotideBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
-            bit_vectors: [AlignedVec256::new(); Self::NUM_BIT_VECTORS],
+            bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
         }
     }
 
     ///creates a bwt block from the given milestone and bit-vector data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
-        bit_vectors: [AlignedVec256; Self::NUM_BIT_VECTORS],
+        bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     ) -> Self {
         NucleotideBwtBlock {
             milestones,
@@ -94,7 +95,7 @@ impl NucleotideBwtBlock {
         &self.milestones
     }
     /// gets a reference to the bit_vectors array
-    pub fn bit_vectors(&self) -> &[AlignedVec256] {
+    pub fn bit_vectors(&self) -> &[Vec256] {
         &self.bit_vectors
     }
 
@@ -133,14 +134,14 @@ impl AminoBwtBlock {
     pub fn new() -> Self {
         AminoBwtBlock {
             milestones: [0; Self::NUM_MILESTONES],
-            bit_vectors: [AlignedVec256::new(); Self::NUM_BIT_VECTORS],
+            bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
         }
     }
 
     /// create a new bwt block from the given data.
     pub fn from_data(
         milestones: [u64; Self::NUM_MILESTONES],
-        bit_vectors: [AlignedVec256; Self::NUM_BIT_VECTORS],
+        bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
     ) -> Self {
         AminoBwtBlock {
             milestones,
@@ -199,7 +200,7 @@ impl AminoBwtBlock {
     }
 
     /// returns a slice view of the bit_vectors for this block
-    pub fn bit_vectors(&self) -> &[AlignedVec256; Self::NUM_BIT_VECTORS] {
+    pub fn bit_vectors(&self) -> &[Vec256; Self::NUM_BIT_VECTORS] {
         &self.bit_vectors
     }
 
@@ -249,11 +250,13 @@ impl AminoBwtBlock {
 }
 
 /// enum representing a BWT, either as Nucleotide symbols or Amino symbols
-#[derive(Debug)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Bwt {
-    Nucleotide(AVec<NucleotideBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
-    Amino(AVec<AminoBwtBlock, ConstAlign<SIMD_ALIGNMENT_BYTES>>),
+    Nucleotide(Vec<NucleotideBwtBlock>),
+    Amino(Vec<AminoBwtBlock>),
 }
+
 
 
 impl Bwt {
@@ -348,7 +351,7 @@ mod tests {
     use std::collections::HashMap;
     use rand::{Rng, SeedableRng};
 
-    use crate::{alphabet::{Symbol, SymbolAlphabet}, simd_instructions::AlignedVec256};
+    use crate::{alphabet::{Symbol, SymbolAlphabet}, simd_instructions::Vec256};
     use super::{AminoBwtBlock, NucleotideBwtBlock};
 
     #[test]
@@ -357,7 +360,7 @@ mod tests {
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [AlignedVec256::new();3],
+            [Vec256::new();3],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -381,7 +384,7 @@ mod tests {
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [AlignedVec256::new();3],
+            [Vec256::new();3],
             
         );
         let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(2);
@@ -433,7 +436,7 @@ mod tests {
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [AlignedVec256::new();5],
+            [Vec256::new();5],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -459,7 +462,7 @@ mod tests {
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [AlignedVec256::new();5],
+            [Vec256::new();5],
         );
 
         let mut counts:HashMap<(u64,u8), u64> = HashMap::new();

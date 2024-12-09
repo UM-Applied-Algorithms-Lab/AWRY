@@ -1,13 +1,12 @@
 use std::path::Path;
 
-use aligned_vec::avec;
 use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
-    bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock, SIMD_ALIGNMENT_BYTES},
+    bwt::{AminoBwtBlock, Bwt, NucleotideBwtBlock},
     compressed_suffix_array::CompressedSuffixArray,
     kmer_lookup_table::KmerLookupTable,
     search::{SearchPtr, SearchRange},
@@ -34,7 +33,6 @@ pub struct FmIndex {
     /// sequence index storing the headers, start positions, and lengths of the sequences
     sequence_index: SequenceIndex,
 }
-
 
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
@@ -105,13 +103,12 @@ impl FmIndex {
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
 
         let mut bwt = match args.alphabet {
-            SymbolAlphabet::Nucleotide => Bwt::Nucleotide(
-                avec![[SIMD_ALIGNMENT_BYTES] | NucleotideBwtBlock::new(); num_bwt_blocks as usize],
-            ),
-            SymbolAlphabet::Amino => Bwt::Amino(avec![
-                [SIMD_ALIGNMENT_BYTES] | AminoBwtBlock::new();
-                num_bwt_blocks as usize
-            ]),
+            SymbolAlphabet::Nucleotide => {
+                Bwt::Nucleotide(vec![NucleotideBwtBlock::new(); num_bwt_blocks as usize])
+            }
+            SymbolAlphabet::Amino => {
+                Bwt::Amino(vec![AminoBwtBlock::new(); num_bwt_blocks as usize])
+            }
         };
 
         let alphabet_cardinality = args.alphabet.cardinality();
