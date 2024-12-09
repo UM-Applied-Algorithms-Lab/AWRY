@@ -2,18 +2,18 @@ use anyhow::Ok;
 use libsufr::SequenceFileData;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 struct SequenceMetadata {
     start_position: usize,
     header: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct SequenceIndex {
     sequences: Vec<SequenceMetadata>,
 }
 
-#[derive(Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct LocalizedSequencePosition {
     sequence_idx: usize,
     local_position: usize,

@@ -17,6 +17,7 @@ pub const FM_VERSION_NUMBER: u64 = 1;
 
 // #[derive(Serialize, Deserialize, Debug)]
 ///Primary FM-index struct
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct FmIndex {
     ///BWT-component of the FM-index
     bwt: Bwt,

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub const SIMD_ALIGNMENT_BYTES: usize = 32;
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 #[repr(align(32))]
 pub struct NucleotideBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -16,7 +16,7 @@ pub struct NucleotideBwtBlock {
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 #[repr(align(32))]
 pub struct AminoBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -250,7 +250,8 @@ impl AminoBwtBlock {
 }
 
 /// enum representing a BWT, either as Nucleotide symbols or Amino symbols
-#[derive(Clone, Serialize, Deserialize)]
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[serde(untagged)]
 pub enum Bwt {
     Nucleotide(Vec<NucleotideBwtBlock>),
