@@ -12,7 +12,7 @@ use std::arch::aarch64::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, Copy)]
+#[derive(Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Vec256 {
     data: [u64; 4],
 }

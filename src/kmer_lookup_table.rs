@@ -11,7 +11,7 @@ use crate::{
     search::SearchRange,
 };
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 ///Table storing precomputed SearchRanges for all kmers of a given length.
 pub struct KmerLookupTable {
     range_table: Vec<SearchRange>,

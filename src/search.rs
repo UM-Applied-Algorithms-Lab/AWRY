@@ -6,7 +6,8 @@ use crate::{alphabet::Symbol, fm_index::FmIndex};
 pub type SearchPtr = u64;
 
 /// Represents the range in the BWT that corresponds to a query. A range is valid (corresponds to at least one position) as long as start_ptr <= end_ptr
-#[derive(Clone, Serialize, Deserialize, Debug)]
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct SearchRange {
     pub start_ptr: SearchPtr,
     pub end_ptr: SearchPtr,
