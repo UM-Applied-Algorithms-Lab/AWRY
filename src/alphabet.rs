@@ -1,7 +1,20 @@
 use serde::{Deserialize, Serialize};
 
 ///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
-
+/// You are unlikely to need to use this enum directly, but instead use the Symbol struct.
+///  # Example
+/// ```
+/// fn print_symbol_encoding(symbol_encoding: SymbolEncoding){
+///     match symbol_encoding{
+///         SymbolEncoding::Ascii(ascii_char) => println!("ascii char: {}", ascii_char),
+///         SymbolEncoding::Index(index) => println!("index: {}", index),
+///         SymbolEncoding::BitVector(bit_vector) => println!("bit vector: {}", bit_vector),
+///     }
+/// }
+/// print_symbol_encoding(SymbolEncoding::Ascii('A'));
+/// print_symbol_encoding(SymbolEncoding::Index(2));
+/// print_symbol_encoding(SymbolEncoding::BitVector(0b1010));
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Copy)]
 pub enum SymbolEncoding {
     Ascii(char),
@@ -10,7 +23,19 @@ pub enum SymbolEncoding {
 }
 
 ///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
-
+/// 
+///  # Example
+/// ```
+/// use sufr_bwt::alphabet::SymbolAlphabet;
+/// 
+/// let nucleotide_alphabet = SymbolAlphabet::Nucleotide;
+/// ...
+/// match nucleotide_alphabet{
+///     SymbolAlphabet::Nucleotide => println!("nucleotide"),
+///     SymbolAlphabet::Amino => println!("amino"),
+/// }
+/// ```
+/// 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Copy)]
 pub enum SymbolAlphabet {
     Nucleotide,
@@ -34,6 +59,15 @@ impl SymbolAlphabet{
 }
 
 ///Implementation of a symbol, from a given alphabet, with a given encoding.
+/// 
+/// # Example
+/// ```
+/// use sufr_bwt::alphabet::Symbol;
+/// 
+/// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+/// let symbol_from_index = Symbol::newindex(SymbolAlphabet::Amino, 4);//Amino Acid E
+/// let symbol_e_bit_vector = symbol_from_index.bit_vector();
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct Symbol {
     alphabet: SymbolAlphabet,
@@ -42,6 +76,15 @@ pub struct Symbol {
 
 impl SymbolAlphabet {
     ///Returns the cardinality, or how many different symbols can occur in this alphabet.
+    /// 
+    /// # Example
+    /// ```
+    /// fn print_cardinality(alphabet: SymbolAlphabet){
+    ///     println!("cardinality: {}", alphabet.cardinality());
+    /// }
+    /// print_cardinality(SymbolAlphabet::Nucleotide);
+    /// print_cardinality(SymbolAlphabet::Amino);
+    /// ```     
     pub fn cardinality(&self) -> u8 {
         match self {
             SymbolAlphabet::Nucleotide => 6,
@@ -50,6 +93,15 @@ impl SymbolAlphabet {
     }
     /// Returns the number of encoding symbols (i.e., non-ambiguity Nucleotide or Amino codes) in the alphabet.
     /// This is used for building and using the kmer lookup table
+    /// 
+    /// # Example
+    /// ```
+    /// fn print_num_encoding_symbols(alphabet: SymbolAlphabet){
+    ///     println!("num encoding symbols: {}", alphabet.num_encoding_symbols());
+    /// }
+    /// print_num_encoding_symbols(SymbolAlphabet::Nucleotide);
+    /// print_num_encoding_symbols(SymbolAlphabet::Amino);
+    /// ``` 
     pub fn num_encoding_symbols(&self) -> u8 {
         self.cardinality() - 2
     }
@@ -57,6 +109,13 @@ impl SymbolAlphabet {
 
 impl Symbol {
     ///Creates a new Symbol from a given ascii letter
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+    /// ``` 
     pub fn new_ascii(alphabet: SymbolAlphabet, ascii: char) -> Symbol {
         Symbol {
             alphabet,
@@ -64,6 +123,14 @@ impl Symbol {
         }
     }
     ///Creates a new Symbol from a given index into the alphabet
+    ///     
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_index = Symbol::new_index(SymbolAlphabet::Amino, 5);
+    /// println!("symbol_from_index: {}", symbol_from_index);
+    /// ``` 
     pub fn new_index(alphabet: SymbolAlphabet, index: u8) -> Symbol {
         debug_assert!(index < alphabet.cardinality());
         Symbol {
@@ -72,6 +139,13 @@ impl Symbol {
         }
     }
     ///Creates a new Symbol
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_bit_vector = Symbol::new_bit_vector(SymbolAlphabet::Nucleotide, 0b1010);
+    /// ``` 
     pub fn new_bit_vector(alphabet: SymbolAlphabet, bit_vector: u8) -> Symbol {
         Symbol {
             alphabet,
@@ -80,6 +154,15 @@ impl Symbol {
     }
 
     /// gets the ascii representation of the symbol with the given alphabet and encoding
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_index(SymbolAlphabet::Nucleotide, 1);
+    /// let ascii = symbol_from_ascii.ascii();
+    /// assert_eq!(ascii, 'A');
+    /// ``` 
     #[inline]
     pub fn ascii(&self) -> char {
         if let SymbolEncoding::Ascii(encoding) = self.to_index().encoding {
@@ -90,6 +173,15 @@ impl Symbol {
     }
 
     /// gets the index representation of the symbol with the given alphabet and encoding
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+    /// let index = symbol_from_ascii.index();
+    /// assert_eq!(index, 1);
+    /// ``` 
     #[inline]
     pub fn index(&self) -> u8 {
         if let SymbolEncoding::Index(encoding) = self.to_index().encoding {
@@ -100,6 +192,15 @@ impl Symbol {
     }
 
     /// gets the bit-vector representation of the symbol with the given alphabet and encoding
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+    /// let bit_vector = symbol_from_ascii.bit_vector();
+    /// assert_eq!(bit_vector, 0b1010);
+    /// ``` 
     #[inline]
     pub fn bit_vector(&self) -> u8 {
         if let SymbolEncoding::BitVector(encoding) = self.to_bit_vector().encoding {
@@ -110,6 +211,15 @@ impl Symbol {
     }
 
     /// converts the symbol into an index-encoded symbol
+    ///     
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Amino, 'A');
+    /// let symbol_from_index = symbol_from_ascii.to_index();
+    /// assert_eq!(symbol_from_index.index(), 1);
+    /// ``` 
     pub fn to_index(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
@@ -192,6 +302,14 @@ impl Symbol {
     }
 
     /// converts the symbol into an bit-vector-encoded symbol
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+    /// let symbol_from_bit_vector = symbol_from_ascii.to_bit_vector();
+    /// assert_eq!(symbol_from_bit_vector.bit_vector(), 0b1010);
+    /// ``` 
     pub fn to_bit_vector(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
@@ -274,6 +392,14 @@ impl Symbol {
     }
 
     /// converts the symbol into an ascii-encoded symbol
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_index(SymbolAlphabet::Amino, 1);
+    /// let symbol_from_ascii = symbol_from_ascii.to_ascii();
+    /// assert_eq!(symbol_from_ascii.ascii(), 'A');
+    /// ```
     pub fn to_ascii(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
@@ -355,6 +481,15 @@ impl Symbol {
         }
     }
 
+    /// returns true if the symbol is a sentinel symbol
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::alphabet::Symbol;
+    /// 
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, '$');
+    /// assert_eq!(symbol_from_ascii.is_sentinel(), true);
+    /// ``` 
     pub fn is_sentinel(&self) -> bool {
         match self.encoding {
             SymbolEncoding::Ascii(val) => val == '$',
