@@ -8,6 +8,15 @@ use serde::{Deserialize, Serialize};
 pub const SIMD_ALIGNMENT_BYTES: usize = 32;
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
+/// 
+/// # Example
+/// ```
+/// use sufr_bwt::bwt::NucleotideBwtBlock;
+/// 
+/// let mut nucleotide_bwt_block = NucleotideBwtBlock::new();
+/// nucleotide_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'), 0);
+/// assert_eq!(nucleotide_bwt_block.ymbol_at(0), Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 #[repr(align(32))]
 pub struct NucleotideBwtBlock {
@@ -16,6 +25,15 @@ pub struct NucleotideBwtBlock {
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
+/// 
+/// # Example
+/// ```
+/// use sufr_bwt::bwt::AminoBwtBlock;
+/// 
+/// let mut amino_bwt_block = AminoBwtBlock::new();
+/// amino_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'), 0);
+/// assert_eq!(amino_bwt_block.symbol_at(0), Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'));
+/// ``` 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 #[repr(align(32))]
 pub struct AminoBwtBlock {
@@ -30,26 +48,52 @@ impl NucleotideBwtBlock {
     pub const NUM_SYMBOLS_PER_BLOCK: u64 = 256;
 
     ///creates a new bwt block, with data zeroed out.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// ``` 
     pub fn new() -> Self {
         NucleotideBwtBlock {
-            milestones: [0; Self::NUM_MILESTONES],
             bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
+            milestones: [0; Self::NUM_MILESTONES],
         }
     }
 
     ///creates a bwt block from the given milestone and bit-vector data.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::from_data(
+    ///     [Vec256::new();NucleotideBwtBlock::NUM_BIT_VECTORS],
+    ///     [1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64],
+    /// );
+    /// ```
     pub fn from_data(
-        milestones: [u64; Self::NUM_MILESTONES],
         bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
+        milestones: [u64; Self::NUM_MILESTONES],
     ) -> Self {
         NucleotideBwtBlock {
-            milestones,
             bit_vectors,
+            milestones,
         }
     }
 
     ///Returns the symbol at the given position in the BWT.
-    pub fn get_symbol_at(&self, position_block: u64)->Symbol{
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'), 0);
+    /// assert_eq!(nucleotide_bwt_block.symbol_at(0), Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// ```
+    pub fn symbol_at(&self, position_block: u64)->Symbol{
         let mut bit_vector_encoding: u64 = 0;
 
         for bit in 0..self.bit_vectors.len() {
@@ -60,6 +104,16 @@ impl NucleotideBwtBlock {
         Symbol::new_bit_vector(SymbolAlphabet::Nucleotide, bit_vector_encoding as u8)
     }
 
+    ///Sets the symbol at the given position in the BWT block.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let mut nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'), 0);
+    /// assert_eq!(nucleotide_bwt_block.symbol_at(0), Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// ```
     pub fn set_symbol_at(&mut self, symbol:&Symbol, position_in_block: u64){
         let mut encoded_symbol = symbol.bit_vector();
 
@@ -75,6 +129,15 @@ impl NucleotideBwtBlock {
     }
 
     ///sets this block's milestone values using the given vector
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let mut nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// assert_eq!(nucleotide_bwt_block.milestones(), &[1000, 2000, 3000, 4000]);
+    /// ``` 
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Nucleotide.cardinality() as usize);
@@ -85,16 +148,47 @@ impl NucleotideBwtBlock {
     }
 
     ///gets this block's milestone corresponding to the given symbol.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// assert_eq!(nucleotide_bwt_block.milestone(&Symbol::new_index(SymbolAlphabet::Nucleotide, 0)), 1000);
+    /// ```
     #[inline]
-    pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
+    pub fn milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
 
     /// gets a reference to the milestones array
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// for milestone in nucleotide_bwt_block.milestones(){
+    ///     println!("milestone: {}", milestone);
+    /// }
+    /// ```
     pub fn milestones(&self) -> &[u64] {
         &self.milestones
     }
     /// gets a reference to the bit_vectors array
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// for bit_vector in nucleotide_bwt_block.bit_vectors(){
+    ///     println!("bit_vector: {:?}", bit_vector);
+    /// }
+    /// ```
     pub fn bit_vectors(&self) -> &[Vec256] {
         &self.bit_vectors
     }
@@ -102,9 +196,18 @@ impl NucleotideBwtBlock {
     /// Gets the result of the occurrence function for the local position in this function.
     /// The occurrence function uses the milestone value and the masked occurrenc vector to
     /// determine how many instances of the given character were before this position.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::NucleotideBwtBlock;
+    /// 
+    /// let nucleotide_bwt_block = NucleotideBwtBlock::new();
+    /// nucleotide_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// assert_eq!(nucleotide_bwt_block.global_occurrence(0, &Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A')), 0);
+    /// ```
     #[inline]
     pub fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
-        let milestone_count = self.get_milestone(&symbol);
+        let milestone_count = self.milestone(&symbol);
         let vec0 = SimdVec256::from(self.bit_vectors[0]);
         let vec1 = SimdVec256::from(self.bit_vectors[1]);
         let vec2 = SimdVec256::from(self.bit_vectors[2]);
@@ -131,17 +234,38 @@ impl AminoBwtBlock {
     pub const NUM_SYMBOLS_PER_BLOCK: usize = 256;
 
     /// create a new bwt block, with data zeroed out
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::AminoBwtBlock;
+    /// 
+    /// let amino_bwt_block = AminoBwtBlock::new();
+    /// ``` 
     pub fn new() -> Self {
         AminoBwtBlock {
-            milestones: [0; Self::NUM_MILESTONES],
             bit_vectors: [Vec256::new(); Self::NUM_BIT_VECTORS],
+            milestones: [0; Self::NUM_MILESTONES],
         }
     }
 
     /// create a new bwt block from the given data.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::AminoBwtBlock;
+    /// 
+    /// let amino_bwt_block = AminoBwtBlock::from_data(
+    ///     [Vec256::new();AminoBwtBlock::NUM_BIT_VECTORS],
+    ///     [
+    ///         1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
+    ///         9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
+    ///         17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
+    ///     ],
+    /// );
+    /// ```
     pub fn from_data(
-        milestones: [u64; Self::NUM_MILESTONES],
         bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
+        milestones: [u64; Self::NUM_MILESTONES],
     ) -> Self {
         AminoBwtBlock {
             milestones,
@@ -150,7 +274,15 @@ impl AminoBwtBlock {
     }
 
     ///Gets the symbol at the given position in the BWT block.
-    pub fn get_symbol_at(&self, position_block: u64)->Symbol{
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::AminoBwtBlock;
+    /// 
+    /// let amino_bwt_block = AminoBwtBlock::new();
+    /// amino_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'), 0);
+    /// assert_eq!(amino_bwt_block.symbol_at(0), Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'));    
+    pub fn symbol_at(&self, position_block: u64)->Symbol{
         let mut bit_vector_encoding: u64 = 0;
 
         for bit in 0..self.bit_vectors.len() {
@@ -162,6 +294,15 @@ impl AminoBwtBlock {
     }
 
     ///Sets the symbol at the given position in the BWT block.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::AminoBwtBlock;
+    /// 
+    /// let mut amino_bwt_block = AminoBwtBlock::new();
+    /// amino_bwt_block.set_symbol_at(&Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'), 0);
+    /// assert_eq!(amino_bwt_block.symbol_at(0), Symbol::new_ascii(SymbolAlphabet::Amino, 'Q'));
+    /// ``` 
     pub fn set_symbol_at(&mut self, symbol:&Symbol, position_in_block: u64){
         //create a bitmask, we'll use this to set the bit with an OR operation
         let mut encoded_symbol = symbol.bit_vector();
@@ -179,6 +320,15 @@ impl AminoBwtBlock {
 
 
     /// sets the milestones for this block with the values given.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::AminoBwtBlock;
+    /// 
+    /// let mut amino_bwt_block = AminoBwtBlock::new();
+    /// amino_bwt_block.set_milestones(&[1000, 2000, 3000, 4000]);
+    /// assert_eq!(amino_bwt_block.milestones(), &[1000, 2000, 3000, 4000]);
+    /// ```
     #[inline]
     pub fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Amino.cardinality() as usize);
@@ -190,7 +340,7 @@ impl AminoBwtBlock {
 
     /// returns the milestone value corresponding to the given symbol
     #[inline]
-    pub fn get_milestone(&self, symbol: &Symbol) -> u64 {
+    pub fn milestone(&self, symbol: &Symbol) -> u64 {
         return self.milestones[symbol.index() as usize];
     }
 
@@ -209,7 +359,7 @@ impl AminoBwtBlock {
     /// determine how many instances of the given character were before this position.
     #[inline]
     pub fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
-        let milestone_count = self.get_milestone(symbol);
+        let milestone_count = self.milestone(symbol);
         let vec0 = SimdVec256::from(self.bit_vectors[0]);
         let vec1 = SimdVec256::from(self.bit_vectors[1]);
         let vec2 = SimdVec256::from(self.bit_vectors[2]);
@@ -273,6 +423,15 @@ impl Bwt {
     /// sets a single symbol at the given position in the bwt bit vectors.
     /// this function is meant to be run for every position in the bwt
     /// as a part of BWT data creation
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::{NucleotideBwtBlock, AminoBwtBlock, Bwt};
+    /// 
+    /// let mut bwt = Bwt::Nucleotide(vec![nucleotide_bwt_block]);
+    /// bwt.set_symbol_at(&SearchPtr::new(0), &Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// assert_eq!(bwt.symbol_at(&SearchPtr::new(0)), Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// ``` 
     pub fn set_symbol_at(&mut self, bwt_position: &SearchPtr, symbol: &Symbol) {
         //find the block, byte, and bit of the data we're setting
         let bwt_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
@@ -285,7 +444,16 @@ impl Bwt {
     }
 
     /// reconstructs the symbol stored at the given bwt position
-    pub fn get_symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::{NucleotideBwtBlock, AminoBwtBlock, Bwt};
+    /// 
+    /// let mut bwt = Bwt::Nucleotide(vec![nucleotide_bwt_block]);
+    /// bwt.set_symbol_at(&SearchPtr::new(0), &Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// assert_eq!(bwt.symbol_at(&SearchPtr::new(0)), Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'C'));
+    /// ```
+    pub fn symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
         //find the block, byte, and bit of the data we're setting
         let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
         let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK;
@@ -319,6 +487,15 @@ impl Bwt {
     }
 
     ///sets the milestone values based on the given counts array
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::{NucleotideBwtBlock, AminoBwtBlock, Bwt};
+    /// 
+    /// let mut bwt = Bwt::Nucleotide(vec![nucleotide_bwt_block]);
+    /// bwt.set_milestones(0, &[1000, 2000, 3000, 4000]);
+    /// assert_eq!(bwt.milestone(&Symbol::new_index(SymbolAlphabet::Nucleotide, 0)), 1000);    
+    /// ```
     pub fn set_milestones(&mut self, block_idx: usize, counts: &Vec<u64>) {
         match self {
             Bwt::Nucleotide(vec) => vec[block_idx].set_milestones(counts),
@@ -327,6 +504,15 @@ impl Bwt {
     }
 
     /// finds the total occurrence value for the given symbol at the specified global position
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::bwt::{NucleotideBwtBlock, AminoBwtBlock, Bwt};
+    /// 
+    /// let mut bwt = Bwt::Nucleotide(vec![nucleotide_bwt_block]);
+    /// bwt.set_milestones(0, &[1000, 2000, 3000, 4000]);
+    /// assert_eq!(bwt.global_occurrence(0, &Symbol::new_index(SymbolAlphabet::Nucleotide, 0)), 0);    
+    /// ```
     pub fn global_occurrence(
         &self,
         pointer_global_position: SearchPtr,
@@ -358,10 +544,10 @@ mod tests {
     #[test]
     fn mock_nucleotide_empty_bwt_block_test() {
         let mock_bwt_block = NucleotideBwtBlock::from_data(
+            [Vec256::new();NucleotideBwtBlock::NUM_BIT_VECTORS],
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [Vec256::new();3],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -382,10 +568,10 @@ mod tests {
     fn mock_nucleotide_preset_bwt_block_test(){
         //set up the comparison data
         let mut mock_bwt_block = NucleotideBwtBlock::from_data(
+            [Vec256::new();NucleotideBwtBlock::NUM_BIT_VECTORS],
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
             ],
-            [Vec256::new();3],
             
         );
         let mut seeded_rng = rand::rngs::StdRng::seed_from_u64(2);
@@ -432,12 +618,12 @@ mod tests {
     #[test]
     fn mock_amino_empty_bwt_block_test() {
         let mock_bwt_block = AminoBwtBlock::from_data(
+            [Vec256::new();AminoBwtBlock::NUM_BIT_VECTORS],
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [Vec256::new();5],
         );
 
         //make sure that with all zeros, each position and each symbol just returns the milestone
@@ -458,12 +644,12 @@ mod tests {
     fn mock_amino_preset_bwt_block_test(){
         //set up the comparison data
         let mut mock_bwt_block = AminoBwtBlock::from_data(
+            [Vec256::new();AminoBwtBlock::NUM_BIT_VECTORS],
             [
                 1000u64, 2000u64, 3000u64, 4000u64, 5000u64, 6000u64, 7000u64, 8000u64,
                 9000u64, 10000u64, 11000u64, 12000u64, 13000u64, 14000u64, 15000u64, 16000u64,
                 17000u64, 18000u64, 19000u64, 20000u64, 21000u64, 22000u64, 23000u64, 24000u64,
             ],
-            [Vec256::new();5],
         );
 
         let mut counts:HashMap<(u64,u8), u64> = HashMap::new();

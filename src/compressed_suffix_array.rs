@@ -3,7 +3,17 @@ use serde::{Deserialize, Serialize};
 /// Struct representing a sampled suffix array. Sampling the suffix array reduces the memory requirement, while still being able to reconstruct
 /// the original position when used in conjunction with the rest of the FM-index.
 /// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory.
-
+/// 
+/// # Example
+/// ```
+/// use sufr_bwt::compressed_suffix_array::CompressedSuffixArray;
+/// 
+/// let mut csa = CompressedSuffixArray::new(80, 8);
+/// for suffix_array_value in 0..10{
+///     csa.set_value(suffix_array_value, suffix_array_value);
+/// }
+/// assert_eq!(csa.data(), &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
@@ -16,6 +26,14 @@ pub struct CompressedSuffixArray {
 
 impl CompressedSuffixArray {
     /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::compressed_suffix_array::CompressedSuffixArray;
+    /// 
+    /// let csa = CompressedSuffixArray::new(80, 8);
+    /// assert_eq!(csa.data(), &[0; 10]);    
+    /// ```
     pub fn new(uncompressed_length: usize, suffix_array_compression_ratio: u64) -> Self {
         assert_ne!(
             uncompressed_length, 0,
@@ -32,6 +50,14 @@ impl CompressedSuffixArray {
     }
 
     /// Returns a reference to the underlying compressed SA data
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::compressed_suffix_array::CompressedSuffixArray;
+    /// 
+    /// let csa = CompressedSuffixArray::new(80, 8);
+    /// assert_eq!(csa.data(), &[0; 10]);    
+    /// ``` 
     pub fn data(&self) -> &Vec<u64> {
         &self.data
     }
@@ -41,6 +67,15 @@ impl CompressedSuffixArray {
 
     /// sets the value in the compressed suffix array.
     /// NOTE! the position is the compressed position, not the position in the full SA.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::compressed_suffix_array::CompressedSuffixArray;
+    /// 
+    /// let mut csa = CompressedSuffixArray::new(40, 4);
+    /// csa.set_value(0, 0);
+    /// assert_eq!(csa.data(), &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    /// ``` 
     pub fn set_value(&mut self, value: u64, position: usize) {
         let word_position = (position * self.bits_per_element as usize) / 64;
         let bit_position = (position * self.bits_per_element as usize) % 64;
@@ -57,6 +92,14 @@ impl CompressedSuffixArray {
     ///reconstructs the value at the given index in the suffix array.
     /// If that position wasn't sampled (i.e., not divisible by the compression ratio),
     /// this function will return None.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::compressed_suffix_array::CompressedSuffixArray;
+    /// 
+    /// let mut csa = CompressedSuffixArray::new(40, 4);
+    /// csa.set_value(100, 1);
+    /// assert_eq!(csa.reconstruct_value(4), Some(100));
     pub fn reconstruct_value(&self, position: usize) -> Option<u64> {
         //if the position isn't sampled, return None to show it
         if position % self.suffix_array_compression_ratio as usize != 0 {

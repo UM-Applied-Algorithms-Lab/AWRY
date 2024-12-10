@@ -17,14 +17,41 @@ pub struct Vec256 {
     data: [u64; 4],
 }
 impl Vec256 {
+    /// Creates a new Vec256
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::simd_instructions::Vec256;
+    /// 
+    /// let vec256 = Vec256::new();
+    /// ``` 
     pub fn new() -> Self {
         Vec256 { data: [0; 4] }
     }
+    /// Extracts the bit at the given bit index
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::simd_instructions::Vec256;
+    /// 
+    /// let vec256 = Vec256::new();
+    /// vec256.set_bit(&0);
+    /// let bit = vec256.extract_bit(&0);
+    /// ``` 
     pub fn extract_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
         return self.data[word_idx as usize] >> bit_idx & 1;
     }
+    /// Sets the bit at the given bit index
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::simd_instructions::Vec256;
+    /// 
+    /// let mut vec256 = Vec256::new();
+    /// vec256.set_bit(&0);
+    /// ```
     pub fn set_bit(&mut self, bit_idx: &u64) {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;

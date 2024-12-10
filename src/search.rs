@@ -5,8 +5,17 @@ use crate::{alphabet::Symbol, fm_index::FmIndex};
 /// Type representing a position in the BWT
 pub type SearchPtr = u64;
 
-/// Represents the range in the BWT that corresponds to a query. A range is valid (corresponds to at least one position) as long as start_ptr <= end_ptr
-
+/// Represents the range in the BWT that corresponds to a query. A range is valid (corresponds to at 
+/// least one position) as long as start_ptr <= end_ptr
+/// 
+/// # Example
+/// ```
+/// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+/// 
+/// //new builds the starting range based on the last symbol in the given query
+/// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
+/// let search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct SearchRange {
     pub start_ptr: SearchPtr,
@@ -15,6 +24,14 @@ pub struct SearchRange {
 
 impl SearchRange {
     /// Creates a new SearchRange, representing all positions in the BWT
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// 
+    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
+    /// let search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
+    /// ```
     pub fn new(fm_index: &FmIndex, symbol:Symbol) -> Self {
         SearchRange {
             start_ptr: fm_index.prefix_sums()[symbol.index() as usize] as SearchPtr,
@@ -22,21 +39,43 @@ impl SearchRange {
         }
     }
 
-    /// Creates a new SearchRange, representing only the first position (the sentinel character)
+    /// Creates a new SearchRange, representing an invalid range (i.e., no elements)
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};    
+    /// let search_range = SearchRange::zero();
+    /// ```
     pub fn zero() -> Self {
         SearchRange {
-            start_ptr: 0,
+            start_ptr: 1,
             end_ptr: 0,
         }
     }
 
     ///returns true if the search range doesn't represent any elements.
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// 
+    /// let search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
+    /// let is_empty = search_range.is_empty();
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         return self.start_ptr > self.end_ptr;
     }
 
     ///gets the number of elements represented by the search range
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// 
+    /// let search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
+    /// let len = search_range.len();
+    /// ```
     pub fn len(&self) -> SearchPtr {
         match self.is_empty() {
             true => 0,
@@ -45,6 +84,16 @@ impl SearchRange {
     }
 
     /// Returns an interator over the BWT positions corresponding to this search range
+    /// 
+    /// # Example
+    /// ```
+    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// 
+    /// let search_range = fm_index.get_search_range_for_string(&String::from("ACGT"));
+    /// for search_range_idx in search_range.range_iter(){
+    ///     println!("bwt position in search range: {:?}", search_range_idx);
+    /// }
+    /// ```
     pub fn range_iter(&self) -> core::ops::Range<SearchPtr> {
         match self.is_empty() {
             true => 0..0,
