@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 /// Struct representing a sampled suffix array. Sampling the suffix array reduces the memory requirement, while still being able to reconstruct
 /// the original position when used in conjunction with the rest of the FM-index.
 /// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory.
-
+///
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-pub struct CompressedSuffixArray {
+pub(crate) struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
     data: Vec<u64>,
     /// By what factor is the suffix array downsampled. a ratio of n only stores values whose indices are divisible by n.
@@ -16,7 +16,8 @@ pub struct CompressedSuffixArray {
 
 impl CompressedSuffixArray {
     /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
-    pub fn new(uncompressed_length: usize, suffix_array_compression_ratio: u64) -> Self {
+    ///
+    pub(crate) fn new(uncompressed_length: usize, suffix_array_compression_ratio: u64) -> Self {
         assert_ne!(
             uncompressed_length, 0,
             "length of compressed suffix array should not be zero"
@@ -32,16 +33,18 @@ impl CompressedSuffixArray {
     }
 
     /// Returns a reference to the underlying compressed SA data
-    pub fn data(&self) -> &Vec<u64> {
+    ///
+    pub(crate) fn data(&self) -> &Vec<u64> {
         &self.data
     }
-    pub fn compression_ratio(&self) -> u64 {
+    pub(crate) fn compression_ratio(&self) -> u64 {
         self.suffix_array_compression_ratio
     }
 
     /// sets the value in the compressed suffix array.
     /// NOTE! the position is the compressed position, not the position in the full SA.
-    pub fn set_value(&mut self, value: u64, position: usize) {
+    ///
+    pub(crate) fn set_value(&mut self, value: u64, position: usize) {
         let word_position = (position * self.bits_per_element as usize) / 64;
         let bit_position = (position * self.bits_per_element as usize) % 64;
 
@@ -57,7 +60,7 @@ impl CompressedSuffixArray {
     ///reconstructs the value at the given index in the suffix array.
     /// If that position wasn't sampled (i.e., not divisible by the compression ratio),
     /// this function will return None.
-    pub fn reconstruct_value(&self, position: usize) -> Option<u64> {
+    pub(crate) fn reconstruct_value(&self, position: usize) -> Option<u64> {
         //if the position isn't sampled, return None to show it
         if position % self.suffix_array_compression_ratio as usize != 0 {
             return None;

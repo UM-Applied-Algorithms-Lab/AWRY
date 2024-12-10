@@ -2,45 +2,85 @@ use anyhow::Ok;
 use libsufr::SequenceFileData;
 use serde::{Deserialize, Serialize};
 
+/// Struct representing the metadata for a sequence in the sequence index
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-struct SequenceMetadata {
+pub(crate) struct SequenceMetadata {
     start_position: usize,
     header: String,
 }
 
+/// Struct representing a sequence index, which maintains a list of all sequence headers and their start positions
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-pub struct SequenceIndex {
+pub(crate) struct SequenceIndex {
     sequences: Vec<SequenceMetadata>,
 }
 
+/// Struct representing a localized position in a sequence, and the sequence index that contains it
+///
+/// # Example
+/// ```
+/// use awry::sequence_index::LocalizedSequencePosition;
+///
+/// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct LocalizedSequencePosition {
     sequence_idx: usize,
-    local_position: usize,
+     local_position: usize,
 }
 
 impl LocalizedSequencePosition {
+    /// Creates a new LocalizedSequencePosition
+    /// 
+    /// # Example
+    /// ```
+    /// use awry::sequence_index::LocalizedSequencePosition;
+    /// 
+    /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
+    /// assert_eq!(localized_sequence_position.sequence_idx(), 0);
+    /// assert_eq!(localized_sequence_position.local_position(), 0);
+    /// ```
     pub fn new(sequence_idx: usize, local_position: usize) -> Self {
         LocalizedSequencePosition {
             sequence_idx,
             local_position,
         }
     }
-    pub fn local_position(&self) -> usize {
-        self.local_position
-    }
+    /// Gets the sequence index
+    /// 
+    /// # Example
+    /// ```
+    /// use awry::sequence_index::LocalizedSequencePosition;
+    /// 
+    /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
+    /// assert_eq!(localized_sequence_position.sequence_idx(), 0);
+    /// ``` 
     pub fn sequence_idx(&self) -> usize {
         self.sequence_idx
+    }
+    /// Gets the local position
+    /// 
+    /// # Example
+    /// ```
+    /// use awry::sequence_index::LocalizedSequencePosition;
+    /// 
+    /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
+    /// assert_eq!(localized_sequence_position.local_position(), 0);
+    /// ``` 
+    pub fn local_position(&self) -> usize {
+        self.local_position
     }
 }
 
 impl SequenceIndex {
-    pub fn new() -> Self {
+    /// Creates a new SequenceIndex
+    pub(crate) fn new() -> Self {
         SequenceIndex {
             sequences: Vec::new(),
         }
     }
-    pub fn from_seq_file_data(seq_file_data: &SequenceFileData) -> Self {
+    /// Creates a new SequenceIndex from a SequenceFileData struct (from the libsufr crate)
+    pub(crate) fn from_seq_file_data(seq_file_data: &SequenceFileData) -> Self {
         let mut sequence_index: SequenceIndex = SequenceIndex::new();
         for seq_idx in 0..seq_file_data.headers.len() {
             sequence_index.add_sequence(
@@ -51,16 +91,22 @@ impl SequenceIndex {
 
         return sequence_index;
     }
-
-    pub fn add_sequence(&mut self, header: &str, start_position: usize) {
+    /// Adds a sequence to the sequence index
+    pub(crate) fn add_sequence(&mut self, header: &str, start_position: usize) {
         self.sequences.push(SequenceMetadata {
             start_position,
             header: header.to_string(),
         })
     }
-    pub fn get_seq_location(&self, global_position: usize) -> Option<LocalizedSequencePosition> {
+
+    /// Gets the LocalizedSequencePosition for the given global position
+    pub(crate) fn get_seq_location(
+        &self,
+        global_position: usize,
+    ) -> Option<LocalizedSequencePosition> {
         return self.find_sequence_binary_search(global_position, 0, self.sequences.len() - 1);
     }
+
     fn find_sequence_binary_search(
         &self,
         global_position: usize,
@@ -86,7 +132,8 @@ impl SequenceIndex {
         }
     }
 
-    pub fn serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<(), anyhow::Error> {
+    /// Serializes the sequence index to a file
+    pub(crate) fn serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<(), anyhow::Error> {
         writer.write_all(&(self.sequences.len() as u64).to_le_bytes())?;
         for sequence in self.sequences.iter() {
             writer.write_all(&(sequence.start_position as u64).to_le_bytes())?;
@@ -96,7 +143,8 @@ impl SequenceIndex {
         return Ok(());
     }
 
-    pub fn from_file<R: std::io::Read>(reader: &mut R) -> Result<Self, anyhow::Error> {
+    /// Deserializes the sequence index from a file
+    pub(crate) fn from_file<R: std::io::Read>(reader: &mut R) -> Result<Self, anyhow::Error> {
         let mut sequence_index: SequenceIndex = SequenceIndex::new();
         //read the number of sequences as a usize
         let mut u64_buffer: [u8; 8] = [0; 8];

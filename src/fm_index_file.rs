@@ -17,6 +17,26 @@ const FM_FILE_LABEL_STRING:&[u8;11] = b"AWRY-Index\n";
 
 impl FmIndex {
     /// Saves them FM-index to disk at the given file path
+    /// 
+    /// # Example
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
+    /// 
+    ///
+    /// let build_args = FmBuildArgs {
+    ///     input_file_src: "test.fasta".to_owned(),
+    ///     suffix_array_output_src: None,
+    ///     suffix_array_compression_ratio: Some(16),
+    ///     lookup_table_kmer_len: None,
+    ///     alphabet: SymbolAlphabet::Nucleotide,
+    ///     max_query_len: None,
+    ///     remove_intermediate_suffix_array_file: true,
+    /// };
+    /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
+    /// fm_index.save(&Path::new("test.awry")).expect("unable to save fm index to file");
+    /// ``` 
     pub fn save(&self, file_output_src: &Path) -> Result<(), Error> {
         let mut fm_index_file = std::fs::OpenOptions::new()
             .write(true)
@@ -83,6 +103,29 @@ impl FmIndex {
     }
 
     ///Loads the fm-index file from the given file path
+    /// 
+    /// # Example
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
+    /// 
+    ///
+    /// let build_args = FmBuildArgs {
+    ///     input_file_src: "test.fasta".to_owned(),
+    ///     suffix_array_output_src: None,
+    ///     suffix_array_compression_ratio: Some(16),
+    ///     lookup_table_kmer_len: None,
+    ///     alphabet: SymbolAlphabet::Nucleotide,
+    ///     max_query_len: None,
+    ///     remove_intermediate_suffix_array_file: true,
+    /// };
+    /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
+    /// fm_index.save(&Path::new("test.awry")).expect("unable to save fm index to file");
+    /// 
+    /// 
+    /// let loaded_fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
+    /// ``` 
     pub fn load(fm_file_src: &Path) -> Result<FmIndex, Error> {
         let mut fm_index_file = std::fs::OpenOptions::new()
             .write(false)
@@ -181,7 +224,7 @@ impl FmIndex {
                             let bit_vector_slice = unsafe{
                                  slice::from_raw_parts(vector_ptr, NucleotideBwtBlock::NUM_BIT_VECTORS)
                             };
-                            bwt_block_list[block_idx] = NucleotideBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
+                            bwt_block_list[block_idx] = NucleotideBwtBlock::from_data( bit_vector_slice.try_into().unwrap(), milestones); 
                         }
 
                         Bwt::Nucleotide(bwt_block_list) 
@@ -205,7 +248,7 @@ impl FmIndex {
                             let bit_vector_slice = unsafe{
                                 slice::from_raw_parts(vector_ptr, AminoBwtBlock::NUM_BIT_VECTORS)
                             };
-                            bwt_block_list[block_idx] = AminoBwtBlock::from_data(milestones, bit_vector_slice.try_into().unwrap());
+                            bwt_block_list[block_idx] = AminoBwtBlock::from_data( bit_vector_slice.try_into().unwrap(), milestones);
                         }
                         Bwt::Amino(bwt_block_list)
                     },

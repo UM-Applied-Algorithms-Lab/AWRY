@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __m256i, _mm256_and_si256, _mm256_andnot_si256, _mm256_extract_epi64, _mm256_load_si256,
-    _mm256_or_si256, _mm256_setzero_si256, _mm256_storeu_si256,
+    _mm256_or_si256,
 };
 
 #[cfg(target_arch = "aarch64")]
@@ -12,25 +12,30 @@ use std::arch::aarch64::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-pub struct Vec256 {
+#[derive(
+    Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default,
+)]
+pub(crate) struct Vec256 {
     data: [u64; 4],
 }
 impl Vec256 {
-    pub fn new() -> Self {
+    /// Creates a new Vec256
+    pub(crate) fn new() -> Self {
         Vec256 { data: [0; 4] }
     }
-    pub fn extract_bit(&self, bit_idx: &u64) -> u64 {
+    /// Extracts the bit at the given bit index
+    pub(crate) fn extract_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
         return self.data[word_idx as usize] >> bit_idx & 1;
     }
-    pub fn set_bit(&mut self, bit_idx: &u64) {
+    /// Sets the bit at the given bit index
+    pub(crate) fn set_bit(&mut self, bit_idx: &u64) {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
         self.data[word_idx as usize] |= 1 << bit_idx;
     }
-    pub fn data(&self) -> &[u64; 4] {
+    pub(crate) fn data(&self) -> &[u64; 4] {
         &self.data
     }
 }
@@ -38,7 +43,7 @@ impl Vec256 {
 #[cfg(target_arch = "x86_64")]
 #[derive(Debug, Clone, Copy)]
 ///Struct containing an AVX2 256-bit vector on x86_64
-pub struct SimdVec256 {
+pub(crate) struct SimdVec256 {
     pub data: __m256i,
 }
 
@@ -56,8 +61,8 @@ impl From<Vec256> for SimdVec256 {
 #[cfg(target_arch = "aarch64")]
 #[derive(Debug, Clone, Copy)]
 ///Struct containing an ARM-Neon 256-bit vector on ARM(made up of 2 128-bit lanes)
-pub struct SimdVec256 {
-    pub data: uint64x2x2_t,
+pub(crate) struct SimdVec256 {
+    pub(crate) data: uint64x2x2_t,
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -73,45 +78,29 @@ impl From<Vec256> for SimdVec256 {
 
 #[cfg(target_arch = "x86_64")]
 impl SimdVec256 {
-    pub fn zero() -> Self {
-        unsafe {
-            SimdVec256 {
-                data: _mm256_setzero_si256(),
-            }
-        }
-    }
 
-    pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = Vec256::new();
-        vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
-        unsafe {
-            SimdVec256 {
-                data: _mm256_load_si256(vals.data.as_ptr() as *const __m256i),
-            }
-        }
-    }
-    pub fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: _mm256_and_si256(self.data, vec2.data),
             }
         }
     }
-    pub fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: _mm256_or_si256(self.data, vec2.data),
             }
         }
     }
-    pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: _mm256_andnot_si256(self.data, vec2.data),
             }
         }
     }
-    pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
+    pub(crate) fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 
@@ -131,36 +120,11 @@ impl SimdVec256 {
         return popcount;
     }
 
-    ///Gets the value of the bit at the given bit index of the vector. The value is shifted into bit0, so returns 0 or 1.
-    pub fn get_bit(&self, bit_idx: &u64) -> u64 {
-        let word_idx = bit_idx / 64;
-        let bit_idx = bit_idx % 64;
-        unsafe {
-            //extract the word containing the bit we want. the index must be compile time constant, so do it in a match
-            (match word_idx {
-                0 => _mm256_extract_epi64::<0>(self.data) as u64,
-                1 => _mm256_extract_epi64::<1>(self.data) as u64,
-                2 => _mm256_extract_epi64::<2>(self.data) as u64,
-                _ => _mm256_extract_epi64::<3>(self.data) as u64,
-            } >> bit_idx)   //shift the bit we want into bit 0.
-                & 1 //only keep the bit we care about
-        }
-    }
-
-    ///Returns the SIMD vector as an array of 4 u64s
-    pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = Vec256::new();
-        unsafe {
-            _mm256_storeu_si256(array.data.as_mut_ptr() as *mut __m256i, self.data);
-        }
-
-        array.data
-    }
 }
 
 #[cfg(target_arch = "aarch64")]
 impl SimdVec256 {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         unsafe {
             SimdVec256 {
                 data: uint64x2x2_t(vdupq_n_u64(0), vdupq_n_u64(0)),
@@ -168,17 +132,7 @@ impl SimdVec256 {
         }
     }
 
-    pub fn as_one_hot(bit_index: u64) -> SimdVec256 {
-        let mut vals = Vec256::new();
-        vals.data[(bit_index / 64) as usize] = 1 << (bit_index % 64);
-        unsafe {
-            SimdVec256 {
-                data: vld1q_u64_x2(vals.data.as_ptr() as *const u64),
-            }
-        }
-    }
-
-    pub fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint64x2x2_t {
@@ -188,7 +142,7 @@ impl SimdVec256 {
             }
         }
     }
-    pub fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn or(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint64x2x2_t {
@@ -199,7 +153,7 @@ impl SimdVec256 {
         }
     }
 
-    fn not(&self) -> SimdVec256 {
+    pub(crate) fn not(&self) -> SimdVec256 {
         unsafe {
             SimdVec256 {
                 data: uint64x2x2_t {
@@ -211,11 +165,11 @@ impl SimdVec256 {
         }
     }
 
-    pub fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
+    pub(crate) fn andnot(&self, vec2: &SimdVec256) -> SimdVec256 {
         self.not().and(vec2)
     }
 
-    pub fn masked_popcount(&self, local_query_position: u64) -> u32 {
+    pub(crate) fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 
@@ -236,37 +190,5 @@ impl SimdVec256 {
                 (std::arch::aarch64::vgetq_lane_u64(self.data.1, 1) & bitmasks[3]).count_ones();
         }
         return popcount;
-    }
-
-    ///Gets the value of the bit at the given bit index of the vector. The value is shifted into bit0, so returns 0 or 1.
-    pub fn get_bit(&self, bit_idx: &u64) -> u64 {
-        let lane_idx = bit_idx / 128;
-        let bit_in_lane = bit_idx % 128;
-        let word_idx = bit_in_lane / 64;
-        let bit_in_word = bit_idx % 64;
-        unsafe {
-            if lane_idx == 0 {
-                match word_idx {
-                    0 => return (vgetq_lane_u64(self.data.0, 0) >> bit_in_word) & 1,
-                    _ => return (vgetq_lane_u64(self.data.0, 1) >> bit_in_word) & 1,
-                }
-            } else {
-                match word_idx {
-                    0 => return (vgetq_lane_u64(self.data.1, 0) >> bit_in_word) & 1,
-                    _ => return (vgetq_lane_u64(self.data.1, 1) >> bit_in_word) & 1,
-                }
-            }
-        }
-    }
-
-    ///Returns the SIMD vector as an array of 4 u64s
-    pub fn to_u64s(&self) -> [u64; 4] {
-        let mut array = Vec256::new();
-        unsafe {
-            vst1q_u64(array.data.as_mut_ptr(), self.data.0);
-            vst1q_u64(array.data.as_mut_ptr().add(2), self.data.1);
-        }
-
-        array.data
     }
 }

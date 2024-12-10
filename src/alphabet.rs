@@ -1,48 +1,90 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 ///Describes how a symbol is encoded, either as ASCII, 1-to-N integer index, or strided bit-vector format
-
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Copy)]
-pub enum SymbolEncoding {
+pub(crate) enum SymbolEncoding {
     Ascii(char),
     Index(u8),
     BitVector(u8),
 }
 
 ///Alphabet from which symbols come from. Any Fm-index, Bwt, etc should come from the same alphabet.
-
+///
+///  # Example
+/// ```
+/// use awry::alphabet::SymbolAlphabet;
+///
+/// let nucleotide_alphabet = SymbolAlphabet::Nucleotide;
+///
+/// match nucleotide_alphabet{
+///     SymbolAlphabet::Nucleotide => println!("nucleotide"),
+///     SymbolAlphabet::Amino => println!("amino"),
+/// }
+/// ```
+///
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Copy)]
 pub enum SymbolAlphabet {
     Nucleotide,
     Amino,
 }
 
-impl SymbolAlphabet{
-    pub fn alphabet_id(&self) -> u8{
-        match self{
+impl Display for SymbolAlphabet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SymbolAlphabet::Nucleotide => "nucleotide",
+                SymbolAlphabet::Amino => "amino",
+            }
+        )
+    }
+}
+
+impl SymbolAlphabet {
+    #[allow(dead_code)]
+    pub(crate) fn alphabet_id(&self) -> u8 {
+        match self {
             SymbolAlphabet::Nucleotide => 0,
             SymbolAlphabet::Amino => 1,
         }
     }
-    pub fn from_id(id: u8) -> Self{
-        match id{
-            0=>SymbolAlphabet::Nucleotide,
-            1=>SymbolAlphabet::Amino,
-            _=>panic!("invalid alphabet id given"),
+    #[allow(dead_code)]
+    pub(crate) fn from_id(id: u8) -> Self {
+        match id {
+            0 => SymbolAlphabet::Nucleotide,
+            1 => SymbolAlphabet::Amino,
+            _ => panic!("invalid alphabet id given"),
         }
     }
 }
 
 ///Implementation of a symbol, from a given alphabet, with a given encoding.
+///
+/// # Example
+/// ```
+/// use awry::alphabet::{Symbol, SymbolAlphabet};
+///
+/// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+/// let symbol_from_index = Symbol::new_index(SymbolAlphabet::Amino, 4);//Amino Acid E
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct Symbol {
     alphabet: SymbolAlphabet,
     encoding: SymbolEncoding,
 }
 
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} code {}", self.alphabet, self.ascii())
+    }
+}
+
 impl SymbolAlphabet {
     ///Returns the cardinality, or how many different symbols can occur in this alphabet.
-    pub fn cardinality(&self) -> u8 {
+    pub(crate) fn cardinality(&self) -> u8 {
         match self {
             SymbolAlphabet::Nucleotide => 6,
             SymbolAlphabet::Amino => 22,
@@ -50,13 +92,20 @@ impl SymbolAlphabet {
     }
     /// Returns the number of encoding symbols (i.e., non-ambiguity Nucleotide or Amino codes) in the alphabet.
     /// This is used for building and using the kmer lookup table
-    pub fn num_encoding_symbols(&self) -> u8 {
+    pub(crate) fn num_encoding_symbols(&self) -> u8 {
         self.cardinality() - 2
     }
 }
 
 impl Symbol {
     ///Creates a new Symbol from a given ascii letter
+    ///
+    /// # Example
+    /// ```
+    /// use awry::alphabet::{Symbol, SymbolAlphabet};
+    ///
+    /// let symbol_from_ascii = Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A');
+    /// ```
     pub fn new_ascii(alphabet: SymbolAlphabet, ascii: char) -> Symbol {
         Symbol {
             alphabet,
@@ -64,6 +113,14 @@ impl Symbol {
         }
     }
     ///Creates a new Symbol from a given index into the alphabet
+    ///     
+    /// # Example
+    /// ```
+    /// use awry::alphabet::{Symbol, SymbolAlphabet};
+    ///
+    /// let symbol_from_index = Symbol::new_index(SymbolAlphabet::Amino, 5);
+    /// println!("symbol_from_index: {}", symbol_from_index);
+    /// ```
     pub fn new_index(alphabet: SymbolAlphabet, index: u8) -> Symbol {
         debug_assert!(index < alphabet.cardinality());
         Symbol {
@@ -72,7 +129,8 @@ impl Symbol {
         }
     }
     ///Creates a new Symbol
-    pub fn new_bit_vector(alphabet: SymbolAlphabet, bit_vector: u8) -> Symbol {
+
+    pub(crate) fn new_bit_vector(alphabet: SymbolAlphabet, bit_vector: u8) -> Symbol {
         Symbol {
             alphabet,
             encoding: SymbolEncoding::BitVector(bit_vector),
@@ -81,36 +139,34 @@ impl Symbol {
 
     /// gets the ascii representation of the symbol with the given alphabet and encoding
     #[inline]
-    pub fn ascii(&self) -> char {
-        if let SymbolEncoding::Ascii(encoding) = self.to_index().encoding {
-            return encoding;
-        } else {
-            panic!("unable to get index encoding, this should not be possible logically.");
+    #[allow(dead_code)]
+    pub(crate) fn ascii(&self) -> char {
+        match self.to_ascii().encoding {
+            SymbolEncoding::Ascii(c) => c,
+            _ => panic!("unable to get ascii encoding, this should not be possible logically."),
         }
     }
 
     /// gets the index representation of the symbol with the given alphabet and encoding
     #[inline]
-    pub fn index(&self) -> u8 {
-        if let SymbolEncoding::Index(encoding) = self.to_index().encoding {
-            return encoding;
-        } else {
-            panic!("unable to get index encoding, this should not be possible logically.");
+    pub(crate) fn index(&self) -> u8 {
+        match self.to_index().encoding {
+            SymbolEncoding::Index(i) => i,
+            _ => panic!("unable to get ascii encoding, this should not be possible logically."),
         }
     }
 
     /// gets the bit-vector representation of the symbol with the given alphabet and encoding
     #[inline]
-    pub fn bit_vector(&self) -> u8 {
-        if let SymbolEncoding::BitVector(encoding) = self.to_bit_vector().encoding {
-            return encoding;
-        } else {
-            panic!("unable to get index encoding, this should not be possible logically.");
+    pub(crate) fn bit_vector(&self) -> u8 {
+        match self.to_bit_vector().encoding {
+            SymbolEncoding::BitVector(b) => b,
+            _ => panic!("unable to get ascii encoding, this should not be possible logically."),
         }
     }
 
     /// converts the symbol into an index-encoded symbol
-    pub fn to_index(&self) -> Symbol {
+    pub(crate) fn to_index(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
                 alphabet: self.alphabet,
@@ -192,7 +248,7 @@ impl Symbol {
     }
 
     /// converts the symbol into an bit-vector-encoded symbol
-    pub fn to_bit_vector(&self) -> Symbol {
+    pub(crate) fn to_bit_vector(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
                 alphabet: self.alphabet,
@@ -274,7 +330,8 @@ impl Symbol {
     }
 
     /// converts the symbol into an ascii-encoded symbol
-    pub fn to_ascii(&self) -> Symbol {
+    #[allow(dead_code)]
+    pub(crate) fn to_ascii(&self) -> Symbol {
         match self.alphabet {
             SymbolAlphabet::Amino => Symbol {
                 alphabet: self.alphabet,
@@ -355,7 +412,8 @@ impl Symbol {
         }
     }
 
-    pub fn is_sentinel(&self) -> bool {
+    /// returns true if the symbol is a sentinel symbol
+    pub(crate) fn is_sentinel(&self) -> bool {
         match self.encoding {
             SymbolEncoding::Ascii(val) => val == '$',
             SymbolEncoding::Index(val) => val == 0,
