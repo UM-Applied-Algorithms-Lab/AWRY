@@ -19,17 +19,20 @@ impl FmIndex {
     /// Saves them FM-index to disk at the given file path
     /// 
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
     /// 
+    ///
     /// let build_args = FmBuildArgs {
     ///     input_file_src: "test.fasta".to_owned(),
     ///     suffix_array_output_src: None,
-    ///     suffix_array_compression_ratio: None,
+    ///     suffix_array_compression_ratio: Some(16),
     ///     lookup_table_kmer_len: None,
     ///     alphabet: SymbolAlphabet::Nucleotide,
     ///     max_query_len: None,
-    ///     remove_intermediate_suffix_array_file: false,
+    ///     remove_intermediate_suffix_array_file: true,
     /// };
     /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
     /// fm_index.save(&Path::new("test.awry")).expect("unable to save fm index to file");
@@ -102,22 +105,24 @@ impl FmIndex {
     ///Loads the fm-index file from the given file path
     /// 
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
     /// 
+    ///
     /// let build_args = FmBuildArgs {
     ///     input_file_src: "test.fasta".to_owned(),
     ///     suffix_array_output_src: None,
-    ///     suffix_array_compression_ratio: None,
+    ///     suffix_array_compression_ratio: Some(16),
     ///     lookup_table_kmer_len: None,
     ///     alphabet: SymbolAlphabet::Nucleotide,
     ///     max_query_len: None,
-    ///     remove_intermediate_suffix_array_file: false,
+    ///     remove_intermediate_suffix_array_file: true,
     /// };
     /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
     /// fm_index.save(&Path::new("test.awry")).expect("unable to save fm index to file");
     /// 
-    /// ...
     /// 
     /// let loaded_fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// ``` 
@@ -154,13 +159,6 @@ impl FmIndex {
 
     /// generates the file header from the data in the fm-index. This header
     /// may differ on different versions of the index
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let header = fm_index.generate_file_header();
-    /// ```
     fn generate_file_header(&self) -> Vec<u64> {
         match self.version_number() {
             _ => {

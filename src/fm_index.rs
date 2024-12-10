@@ -13,15 +13,16 @@ use crate::{
     sequence_index::{LocalizedSequencePosition, SequenceIndex},
 };
 
-pub const FM_VERSION_NUMBER: u64 = 1;
+const FM_VERSION_NUMBER: u64 = 1;
 
 // #[derive(Serialize, Deserialize, Debug)]
 ///Primary FM-index struct
-/// 
+///
 /// # Example
-/// ```
-/// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-/// 
+/// ```no_run
+/// use awry::fm_index::{FmIndex, FmBuildArgs};
+/// use awry::alphabet::SymbolAlphabet;
+///
 /// let build_args = FmBuildArgs {
 ///     input_file_src: "test.fasta".to_owned(),
 ///     suffix_array_output_src: None,
@@ -32,7 +33,7 @@ pub const FM_VERSION_NUMBER: u64 = 1;
 ///     remove_intermediate_suffix_array_file: false,
 /// };
 /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
-/// ``` 
+/// ```
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct FmIndex {
     ///BWT-component of the FM-index
@@ -54,15 +55,16 @@ pub struct FmIndex {
 const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 
 ///Arguments for builing an FM-index
-/// 
+///
 /// # Example
-/// ```
-/// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-/// 
+/// ```no_run
+/// use awry::fm_index::{FmIndex, FmBuildArgs};  
+/// use awry::alphabet::SymbolAlphabet;
+///
 /// let build_args = FmBuildArgs {
 ///     input_file_src: "test.fasta".to_owned(),
 ///     suffix_array_output_src: None,
-///     suffix_array_compression_ratio: 16,
+///     suffix_array_compression_ratio: Some(16),
 ///     lookup_table_kmer_len: None,
 ///     alphabet: SymbolAlphabet::Nucleotide,
 ///     max_query_len: None,
@@ -72,33 +74,57 @@ const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FmBuildArgs {
     ///file source for the input, either Fasta or Fastq format
-    input_file_src: String,
+    pub input_file_src: String,
     ///file source to output the intermediate suffix array file.
-    suffix_array_output_src: Option<String>,
+    pub suffix_array_output_src: Option<String>,
     ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
-    suffix_array_compression_ratio: Option<u8>,
+    pub suffix_array_compression_ratio: Option<u8>,
     ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory.
     /// If None, uses sensible defaults.
-    lookup_table_kmer_len: Option<u8>,
+    pub lookup_table_kmer_len: Option<u8>,
     ///alphabet of the input text, and therefore the FM-index.
-    alphabet: SymbolAlphabet,
+    pub alphabet: SymbolAlphabet,
     ///Maximum length to allow for searching, or None for unlimited. Setting this slightly speeds up build times,
     /// but may fail if searching for longer queries than specified/
-    max_query_len: Option<usize>,
+    pub max_query_len: Option<usize>,
     ///If true, will delete the intermediate suffix array file when done.
     /// This file is unnecessary for proper functionality of the FM-index.
-    remove_intermediate_suffix_array_file: bool,
+    pub remove_intermediate_suffix_array_file: bool,
+}
+
+impl FmBuildArgs {
+    /// Creates a new FmBuildArgs struct with the given arguments
+    pub fn new(
+        input_file_src: String,
+        suffix_array_output_src: Option<String>,
+        suffix_array_compression_ratio: Option<u8>,
+        lookup_table_kmer_len: Option<u8>,
+        alphabet: SymbolAlphabet,
+        max_query_len: Option<usize>,
+        remove_intermediate_suffix_array_file: bool,
+    ) -> Self {
+        FmBuildArgs {
+            input_file_src,
+            suffix_array_output_src,
+            suffix_array_compression_ratio,
+            lookup_table_kmer_len,
+            alphabet,
+            max_query_len,
+            remove_intermediate_suffix_array_file,
+        }
+    }
 }
 
 impl FmIndex {
     const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
 
     /// Construct a new FM-index using the supplied build args.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    ///
     /// let build_args = FmBuildArgs {
     ///     input_file_src: "test.fasta".to_owned(),
     ///     suffix_array_output_src: None,
@@ -109,7 +135,7 @@ impl FmIndex {
     ///     remove_intermediate_suffix_array_file: false,
     /// };
     /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
-    /// ``` 
+    /// ```
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
         let suffix_array_src = args
             .suffix_array_output_src
@@ -231,7 +257,7 @@ impl FmIndex {
     }
 
     /// Creates a new FM-index from its constituent parts
-    pub fn from_elements(
+    pub(crate) fn from_elements(
         bwt: Bwt,
         prefix_sums: Vec<u64>,
         sampled_suffix_array: CompressedSuffixArray,
@@ -252,11 +278,13 @@ impl FmIndex {
     }
 
     /// Gets the alphabet the BWT is made from.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let alphabet = fm_index.alphabet();
     /// ```
@@ -268,11 +296,12 @@ impl FmIndex {
     }
 
     /// Gets the suffix array compression ratio from the compressed suffix array.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let suffix_array_compression_ratio = fm_index.suffix_array_compression_ratio();
     /// ```
@@ -281,24 +310,26 @@ impl FmIndex {
     }
 
     /// Gets the length of the BWT
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let bwt_len = fm_index.bwt_len();
-    /// ``` 
+    /// ```
     pub fn bwt_len(&self) -> u64 {
         self.bwt_len
     }
 
     /// Gets the Version number for the FM-index.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let version_number = fm_index.version_number();
     /// ```
@@ -307,23 +338,17 @@ impl FmIndex {
     }
 
     /// Gets a reference to the Bwt.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let bwt = fm_index.bwt();
-    pub fn bwt(&self) -> &Bwt {
+    pub(crate) fn bwt(&self) -> &Bwt {
         &self.bwt
     }
 
     // Gets a reference to the prefix sums.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let prefix_sums = fm_index.prefix_sums();
     /// ```
@@ -332,53 +357,21 @@ impl FmIndex {
     }
 
     /// Gets a reference to the compressed suffix array.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let sampled_suffix_array = fm_index.sampled_suffix_array();
-    /// ```
-    pub fn sampled_suffix_array(&self) -> &CompressedSuffixArray {
+    pub(crate) fn sampled_suffix_array(&self) -> &CompressedSuffixArray {
         &self.sampled_suffix_array
     }
 
     /// Gets a reference to the kmer lookup table.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let kmer_lookup_table = fm_index.kmer_lookup_table();
-    /// ``` 
-    pub fn kmer_lookup_table(&self) -> &KmerLookupTable {
+    pub(crate) fn kmer_lookup_table(&self) -> &KmerLookupTable {
         return &self.kmer_lookup_table;
     }
     /// Gets a reference to the sequence index.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let sequence_index = fm_index.sequence_index();
-    /// ```
-    pub fn sequence_index(&self) -> &SequenceIndex {
+    pub(crate) fn sequence_index(&self) -> &SequenceIndex {
         return &self.sequence_index;
     }
 
     /// Finds the search range for the given query. This is the heart of the count() and locate() functions.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let search_range = fm_index.get_search_range_for_string(&String::from("ACGT"));
-    /// ```
-    pub fn get_search_range_for_string(&self, query: &String) -> SearchRange {
+    pub(crate) fn get_search_range_for_string(&self, query: &String) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
             let alphabet = self.alphabet();
             let final_query_index =
@@ -411,14 +404,15 @@ impl FmIndex {
     }
 
     // Finds the counts for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
     /// let queries = vec![String::from("ACGT"), String::from("ACGT")];
-    /// 
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let counts = fm_index.parallel_count(queries]);    
+    /// let counts = fm_index.parallel_count(&queries);    
     /// for count in counts{
     ///     println!("count: {}", count);
     /// }
@@ -431,14 +425,15 @@ impl FmIndex {
     }
 
     // Finds the locations for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
     /// let queries = vec![String::from("ACGT"), String::from("ACGT")];
-    /// 
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let query_location_list = fm_index.parallel_locate(queries);
+    /// let query_location_list = fm_index.parallel_locate(&queries);
     /// for locations_for_query in query_location_list{
     ///     for location in locations_for_query{
     ///         println!("location: {:?}", location);
@@ -453,24 +448,26 @@ impl FmIndex {
     }
 
     /// Finds the count for the given query.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let count = fm_index.count_string(&String::from("ACGT"));
-    /// ``` 
+    /// ```
     pub fn count_string(&self, query: &String) -> u64 {
         self.get_search_range_for_string(query).len()
     }
 
     /// Finds the locations in the original text of all isntances of the given query.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let locations = fm_index.locate_string(&String::from("ACGT"));
     /// for location in locations{
@@ -508,15 +505,18 @@ impl FmIndex {
     }
 
     /// Perform a single SearchRange updated using a given symbol.
-    /// 
+    ///
     /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::{Symbol, SymbolAlphabet};
+    /// use awry::search::SearchRange;
+    /// use std::path::Path;
+    ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let mut search_range = SearchRange::new(fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, "A")));  
+    /// let mut search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));  
     /// let updated_search_range = fm_index.update_range_with_symbol(search_range, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'G'));
-    /// ``` 
+    /// ```
     pub fn update_range_with_symbol(
         &self,
         search_range: SearchRange,
@@ -541,17 +541,6 @@ impl FmIndex {
     }
 
     /// Finds the symbol that preceeds the given search pointer, used for finding the most recent sampled SA position.
-    /// 
-    /// # Example
-    /// ```
-    /// use sufr_bwt::{FmIndex, FmBuildArgs, SymbolAlphabet};
-    /// 
-    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let search_range = fm_index.get_search_range_for_string(&String::from("ACGT"));
-    /// for search_range_idx in search_range.range_iter(){
-    ///     println!("bwt position before search range: {:?}", fm_index.backstep(search_range_idx));
-    /// }
-    /// ```
     pub fn backstep(&self, search_pointer: SearchPtr) -> SearchPtr {
         let symbol = self.bwt.symbol_at(&search_pointer);
         if symbol.is_sentinel() {
