@@ -44,6 +44,7 @@ pub struct SequenceIndex {
 /// 
 /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
 /// ```
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct LocalizedSequencePosition {
     sequence_idx: usize,
     local_position: usize,
