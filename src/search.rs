@@ -111,8 +111,8 @@ mod tests {
     fn search_range_zero_test() {
         assert_eq!(
             SearchRange::zero().len(),
-            1,
-            "empty search range was not length 1"
+            0,
+            "empty search range was not length 0"
         );
     }
     #[test]
