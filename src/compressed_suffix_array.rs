@@ -57,10 +57,12 @@ impl CompressedSuffixArray {
         //create bitmasks to erase value here, and generate the values to write
 
         self.data[word_position] |= value << bit_position;
-        self.data[word_position + 1] |= match value.checked_shr(64 - bit_position as u32) {
-            Some(val) => val,
-            None => 0,
-        };
+        if bit_position + self.bits_per_element > 64 {
+            self.data[word_position + 1] |= match value.checked_shr(64 - bit_position as u32) {
+                Some(val) => val,
+                None => 0,
+            };
+        }
     }
 
     ///reconstructs the value at the given index in the suffix array.
