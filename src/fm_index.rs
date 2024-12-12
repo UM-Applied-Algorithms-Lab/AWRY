@@ -158,7 +158,7 @@ impl FmIndex {
             ignore_softmask: true,
             sequence_starts: seq_data.start_positions.into_iter().collect(),
             headers: seq_data.headers,
-            num_partitions: 2, //I have no idea why this is 2
+            num_partitions: 16, //the sufr library suggests 16 partitions
             sequence_delimiter,
         };
 
