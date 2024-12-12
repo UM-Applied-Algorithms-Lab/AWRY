@@ -9,24 +9,30 @@ pub(crate) struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
     data: Vec<u64>,
     /// By what factor is the suffix array downsampled. a ratio of n only stores values whose indices are divisible by n.
-    suffix_array_compression_ratio: u64,
+    suffix_array_compression_ratio: usize,
     /// how many bits are required to store each value, i.e., an unsampled SA of length n will require log2_ceil(n) bits per element.
-    bits_per_element: u64,
+    bits_per_element: usize,
 }
 
 impl CompressedSuffixArray {
     /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
     ///
-    pub(crate) fn new(uncompressed_length: usize, suffix_array_compression_ratio: u64) -> Self {
+    pub(crate) fn new(uncompressed_length: usize, suffix_array_compression_ratio: usize) -> Self {
         assert_ne!(
             uncompressed_length, 0,
             "length of compressed suffix array should not be zero"
         );
         let largest_value_in_suffix_array = uncompressed_length - 1;
-        let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as u64;
+        let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as usize;
         let bits_per_element = 64 - num_leading_zeros;
+
+        // find the ceil of the length of the suffix array divided by the compression ratio
+        let num_compressed_elements = uncompressed_length.div_ceil(suffix_array_compression_ratio);
+        let suffix_array_num_words =
+            (num_compressed_elements as u128 * bits_per_element as u128).div_ceil(64) as usize;
+
         CompressedSuffixArray {
-            data: vec![0; uncompressed_length / suffix_array_compression_ratio as usize],
+            data: vec![0; suffix_array_num_words],
             suffix_array_compression_ratio,
             bits_per_element,
         }
@@ -37,7 +43,7 @@ impl CompressedSuffixArray {
     pub(crate) fn data(&self) -> &Vec<u64> {
         &self.data
     }
-    pub(crate) fn compression_ratio(&self) -> u64 {
+    pub(crate) fn compression_ratio(&self) -> usize {
         self.suffix_array_compression_ratio
     }
 
@@ -51,10 +57,12 @@ impl CompressedSuffixArray {
         //create bitmasks to erase value here, and generate the values to write
 
         self.data[word_position] |= value << bit_position;
-        self.data[word_position + 1] |= match value.checked_shr(64 - bit_position as u32) {
-            Some(val) => val,
-            None => 0,
-        };
+        if bit_position + self.bits_per_element > 64 {
+            self.data[word_position + 1] |= match value.checked_shr(64 - bit_position as u32) {
+                Some(val) => val,
+                None => 0,
+            };
+        }
     }
 
     ///reconstructs the value at the given index in the suffix array.
@@ -71,7 +79,7 @@ impl CompressedSuffixArray {
             (sampled_position * self.bits_per_element as usize) % 64;
         let first_word_num_bits = self
             .bits_per_element
-            .min(64 - first_word_bit_start_position as u64);
+            .min(64 - first_word_bit_start_position);
         let second_word_num_bits = self.bits_per_element - first_word_num_bits;
 
         let first_word_bitmask = (1 << first_word_num_bits) - 1;
@@ -91,7 +99,7 @@ impl CompressedSuffixArray {
     }
 
     /// Returns true if the given position is sampled in the compressed suffix array.
-    pub fn position_is_sampled(&self, unsampled_position: u64) -> bool {
+    pub fn position_is_sampled(&self, unsampled_position: usize) -> bool {
         return unsampled_position % self.suffix_array_compression_ratio == 0;
     }
 }
@@ -102,11 +110,11 @@ mod tests {
 
     #[test]
     fn check_compressed_suffix_array() -> anyhow::Result<()> {
-        let sa_len = 123451;
-        let sa_values: Vec<u64> = (0..sa_len).collect();
+        let sa_len = 123451usize;
+        let sa_values: Vec<u64> = (0..sa_len as u64).collect();
 
-        for compression_ratio in 1..16 {
-            let compressed_length = (sa_len / compression_ratio) as usize;
+        for compression_ratio in 1usize..16 {
+            let compressed_length = sa_len / compression_ratio;
             let mut csa = CompressedSuffixArray::new(sa_len as usize, compression_ratio);
 
             assert_eq!(
