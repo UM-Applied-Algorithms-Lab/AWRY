@@ -170,7 +170,7 @@ impl FmIndex {
                 //Matches version 1
                 let mut header: Vec<u64> = vec![0; 8];
                 header[0] = self.version_number();
-                header[1] = self.suffix_array_compression_ratio();
+                header[1] = self.suffix_array_compression_ratio() as u64;
                 header[2] = self.bwt_len();
                 header[3] = alphabet_idx;
                 //the remaining 32 bytes are left empty for now
@@ -187,7 +187,7 @@ impl FmIndex {
                 let mut u64_buffer: [u8; 8] = [0; 8];
                 //currently only version 1 is supported.
                 fm_index_file.read_exact(&mut u64_buffer)?;
-                let suffix_array_compression_ratio = u64::from_le_bytes(u64_buffer);
+                let suffix_array_compression_ratio = usize::from_le_bytes(u64_buffer);
 
                 fm_index_file.read_exact(&mut u64_buffer)?;
                 let bwt_len =  u64::from_le_bytes(u64_buffer);
@@ -201,7 +201,7 @@ impl FmIndex {
                     _=>panic!("invalid symbol alphabet , did not match any supported alphabet")
                 };
 
-                let compressed_suffix_array_len = (bwt_len / suffix_array_compression_ratio) as usize;
+                let compressed_suffix_array_len = bwt_len as usize / suffix_array_compression_ratio;
                 let num_bwt_blocks = (bwt_len as usize).div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK as usize);
 
                 

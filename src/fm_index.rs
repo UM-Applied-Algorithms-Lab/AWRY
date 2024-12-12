@@ -171,7 +171,7 @@ impl FmIndex {
             .suffix_array_compression_ratio
             .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
         let mut compressed_suffix_array =
-            CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as u64);
+            CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as usize);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
@@ -305,8 +305,8 @@ impl FmIndex {
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let suffix_array_compression_ratio = fm_index.suffix_array_compression_ratio();
     /// ```
-    pub fn suffix_array_compression_ratio(&self) -> u64 {
-        self.sampled_suffix_array.compression_ratio()
+    pub fn suffix_array_compression_ratio(&self) -> usize {
+        self.sampled_suffix_array.compression_ratio() 
     }
 
     /// Gets the length of the BWT
@@ -484,7 +484,7 @@ impl FmIndex {
             let mut backstep_position = search_range_idx;
             while !self
                 .sampled_suffix_array
-                .position_is_sampled(backstep_position)
+                .position_is_sampled(backstep_position as usize)
             {
                 backstep_position = self.backstep(backstep_position);
                 num_backsteps_taken += 1;
