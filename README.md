@@ -7,7 +7,7 @@ AWRY is a port of a state-of-the-art, fastest in its class FM-index implementati
 
 ## Building an FM-index
 to build an fm-index, create an FmBuildArgs struct, and call FmIndex::new()
-```
+```rust
 let buildArgs =  FmBuildArgs {
     input_file_src: "my_input.fa",              //sets what the input file for the database text will be
     suffix_array_output_src: None,              //will build to a default location
@@ -27,7 +27,7 @@ If you only intend to use the count function, you can set the suffix array compr
 ## Searching for a query
 To search for a query, use to count_string and locate_string functions.
 
-```
+```rust
 pub fn count_string(&self, query: &String) -> u64 {
     ...
 }
@@ -41,7 +41,7 @@ pub fn locate_string(&self, query: &String) -> Vec<u64> {
 # Searching for queries in parallel
 To find a large number of queries, searching can be parallelized easily with the parallel_count and parallel_locate functions
 
-```
+```rust
 pub fn parallel_count(&self, queries: &Vec<String>) -> Vec<u64> {
     ...
 }
