@@ -25,8 +25,10 @@ impl CompressedSuffixArray {
         let largest_value_in_suffix_array = uncompressed_length - 1;
         let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as u64;
         let bits_per_element = 64 - num_leading_zeros;
+        
+        // there's a +1 to the length of the suffix array to make sure we don't write or read past the end of the vec.
         CompressedSuffixArray {
-            data: vec![0; uncompressed_length / suffix_array_compression_ratio as usize],
+            data: vec![0; (uncompressed_length / suffix_array_compression_ratio as usize) + 1 ],
             suffix_array_compression_ratio,
             bits_per_element,
         }
