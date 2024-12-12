@@ -1,6 +1,6 @@
 [package]
 name = "awry"
-version = "0.1.1"
+version = "0.1.2"
 description = "Library for creating FM-indexes from FASTA/FASTQ files. AWRY is able to search at lightning speed by leveraging SIMD vectorization and multithreading over collections of queries."
 license = "BSD-3-Clause"
 homepage = "https://github.com/UM-Applied-Algorithms-Lab/AWRY_Index"
@@ -17,13 +17,8 @@ edition = "2021"
 rayon = "1.10.0"
 anyhow = "1.0.92"
 libsufr = "0.4.0"
-sufr = "0.4.0"
-aligned-vec = "0.6.1"
 aligned = "0.4.2"
-reqwest = {version = "0.12.9",features = ["blocking"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 rand = "0.8.5"
-rng = "0.1.0"
 serde = { version = "1.0.215", features = ["derive"] }
 
 [lib]
