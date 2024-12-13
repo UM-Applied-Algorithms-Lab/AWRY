@@ -18,18 +18,12 @@ impl CompressedSuffixArray {
     /// Allocates space for a new Compressed Suffix Array, given the total uncompressed length and a compression ratio.
     ///
     pub(crate) fn new(uncompressed_length: usize, suffix_array_compression_ratio: usize) -> Self {
-        assert_ne!(
+        debug_assert_ne!(
             uncompressed_length, 0,
             "length of compressed suffix array should not be zero"
         );
-        let largest_value_in_suffix_array = uncompressed_length - 1;
-        let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as usize;
-        let bits_per_element = 64 - num_leading_zeros;
-
-        // find the ceil of the length of the suffix array divided by the compression ratio
-        let num_compressed_elements = uncompressed_length.div_ceil(suffix_array_compression_ratio);
-        let suffix_array_num_words =
-            (num_compressed_elements as u128 * bits_per_element as u128).div_ceil(64) as usize;
+        let bits_per_element = Self::bits_per_element(uncompressed_length);
+        let suffix_array_num_words =Self::compressed_word_len(uncompressed_length, suffix_array_compression_ratio);
 
         CompressedSuffixArray {
             data: vec![0; suffix_array_num_words],
@@ -101,6 +95,25 @@ impl CompressedSuffixArray {
     /// Returns true if the given position is sampled in the compressed suffix array.
     pub fn position_is_sampled(&self, unsampled_position: usize) -> bool {
         return unsampled_position % self.suffix_array_compression_ratio == 0;
+    }
+
+    pub(crate) fn compressed_word_len(
+        bwt_len: usize,
+        suffix_array_compression_ratio: usize,
+    ) -> usize {
+        let bits_per_element = Self::bits_per_element(bwt_len);
+        let num_compressed_elements = bwt_len.div_ceil(suffix_array_compression_ratio);
+        let suffix_array_num_words =
+            (num_compressed_elements as u128 * bits_per_element as u128).div_ceil(64) as usize;
+
+        return suffix_array_num_words;
+    }
+    pub(crate) fn bits_per_element(bwt_len:usize) -> usize {
+        let largest_value_in_suffix_array = bwt_len - 1;
+        let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as usize;
+        let bits_per_element = 64 - num_leading_zeros;
+
+        return bits_per_element;
     }
 }
 
