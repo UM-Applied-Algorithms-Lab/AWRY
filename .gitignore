@@ -16,6 +16,7 @@ Cargo.lock
 *.sufr
 *.fasta
 *.fastq
+*.fa
 *.awry
 *.sa
 .vscode
