@@ -1,3 +1,5 @@
+
+
 use crate::bwt::{AminoBwtBlock, NucleotideBwtBlock};
 use crate::compressed_suffix_array::CompressedSuffixArray;
 use crate::fm_index::FmIndex;
@@ -54,27 +56,27 @@ impl FmIndex {
         match self.bwt() {
             crate::bwt::Bwt::Nucleotide(vec) => {
                 for block in vec.iter() {
-                    for milestone in block.milestones() {
-                        fm_index_file.write_all(&milestone.to_le_bytes())?;
-                    }
                     for bit_vector in block.bit_vectors() {
                         let bit_vector_values = bit_vector.data();
                         for bit_vector_value in bit_vector_values {
                             fm_index_file.write_all(&bit_vector_value.to_le_bytes())?;
                         }
+                    }
+                    for milestone in block.milestones() {
+                        fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
                 }
             }
             crate::bwt::Bwt::Amino(vec) => {
                 for block in vec.iter() {
-                    for milestone in block.milestones() {
-                        fm_index_file.write_all(&milestone.to_le_bytes())?;
-                    }
                     for bit_vector in block.bit_vectors() {
                         let bit_vector_values = bit_vector.data();
                         for bit_vector_value in bit_vector_values {
                             fm_index_file.write_all(&bit_vector_value.to_le_bytes())?;
                         }
+                    }
+                    for milestone in block.milestones() {
+                        fm_index_file.write_all(&milestone.to_le_bytes())?;
                     }
                 }
             }
@@ -91,6 +93,7 @@ impl FmIndex {
         }
 
         //write the kmer lookup table
+        debug_assert!(self.kmer_lookup_table().kmer_len() != 0);
         fm_index_file.write(&self.kmer_lookup_table().kmer_len().to_le_bytes())?;
         for range in self.kmer_lookup_table().table(){
             fm_index_file.write_all(&range.start_ptr.to_le_bytes())?;
@@ -159,7 +162,7 @@ impl FmIndex {
 
     /// generates the file header from the data in the fm-index. This header
     /// may differ on different versions of the index
-    fn generate_file_header(&self) -> Vec<u64> {
+    fn generate_file_header(&self) -> [u64;4] {
         match self.version_number() {
             _ => {
                 let alphabet_idx: u64 = match self.bwt() {
@@ -168,14 +171,11 @@ impl FmIndex {
                 };
 
                 //Matches version 1
-                let mut header: Vec<u64> = vec![0; 8];
-                header[0] = self.version_number();
-                header[1] = self.suffix_array_compression_ratio() as u64;
-                header[2] = self.bwt_len();
-                header[3] = alphabet_idx;
-                //the remaining 32 bytes are left empty for now
+                return [self.version_number(), 
+                self.suffix_array_compression_ratio() as u64, 
+                self.bwt_len(), 
+                alphabet_idx];
 
-                header
             }
         }
     }
@@ -201,29 +201,33 @@ impl FmIndex {
                     _=>panic!("invalid symbol alphabet , did not match any supported alphabet")
                 };
 
-                let compressed_suffix_array_len = bwt_len as usize / suffix_array_compression_ratio;
-                let num_bwt_blocks = (bwt_len as usize).div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK as usize);
-
+                let suffix_array_num_words = CompressedSuffixArray::compressed_word_len(bwt_len as usize, suffix_array_compression_ratio);
+                let num_bwt_blocks = Bwt::num_blocks(bwt_len);
                 
                 let bwt:Bwt = match alphabet{
                     SymbolAlphabet::Nucleotide => {
                         let mut bwt_block_list = vec![NucleotideBwtBlock::new();num_bwt_blocks];
                         for block_idx in 0..bwt_block_list.len(){
+                            const BIT_VECTORS_PER_BLOCK:usize = NucleotideBwtBlock::NUM_BIT_VECTORS;
+                            const BIT_VECTOR_BYTES_PER_BLOCK:usize = 32*BIT_VECTORS_PER_BLOCK;
+                            const NUM_MILESTONES:usize = NucleotideBwtBlock::NUM_MILESTONES;
+
+                            //read the bit vectors for this block
+                            let mut bit_vector_buffer:[u8;BIT_VECTOR_BYTES_PER_BLOCK] = [0;BIT_VECTOR_BYTES_PER_BLOCK];
+                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
+                            let buffer_ptr = bit_vector_buffer.as_ptr();
+                            let vector_ptr = buffer_ptr as *const Vec256;
+                            let bit_vector_slice = unsafe{
+                                slice::from_raw_parts(vector_ptr, BIT_VECTORS_PER_BLOCK)
+                            };
+
                             //read the milestones for this block
-                            let mut milestones:[u64;NucleotideBwtBlock::NUM_MILESTONES] = [0; NucleotideBwtBlock::NUM_MILESTONES];
+                            let mut milestones:[u64;NUM_MILESTONES] = [0; NUM_MILESTONES];
                             for milestone_idx in 0..milestones.len(){
                                 fm_index_file.read_exact(&mut u64_buffer)?;
                                 milestones[milestone_idx] = u64::from_le_bytes(u64_buffer);
                             }
 
-                            //read the bit vectors for this block
-                            let mut bit_vector_buffer:[u8;32*NucleotideBwtBlock::NUM_BIT_VECTORS] = [0;32*NucleotideBwtBlock::NUM_BIT_VECTORS];
-                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
-                            let buffer_ptr = bit_vector_buffer.as_ptr();
-                            let vector_ptr = buffer_ptr as *const Vec256;
-                            let bit_vector_slice = unsafe{
-                                 slice::from_raw_parts(vector_ptr, NucleotideBwtBlock::NUM_BIT_VECTORS)
-                            };
                             bwt_block_list[block_idx] = NucleotideBwtBlock::from_data( bit_vector_slice.try_into().unwrap(), milestones); 
                         }
 
@@ -233,6 +237,17 @@ impl FmIndex {
                     SymbolAlphabet::Amino =>{
                         let mut bwt_block_list = vec![AminoBwtBlock::new();num_bwt_blocks];
                         for block_idx in 0..bwt_block_list.len(){
+                            const BIT_VECTORS_PER_BLOCK:usize = AminoBwtBlock::NUM_BIT_VECTORS;
+                            
+                            //read the bit vectors for this block
+                            let mut bit_vector_buffer:[u8;32*BIT_VECTORS_PER_BLOCK] = [0;32*BIT_VECTORS_PER_BLOCK];
+                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
+                            let buffer_ptr = bit_vector_buffer.as_ptr();
+                            let vector_ptr = buffer_ptr as *const Vec256;
+                            let bit_vector_slice = unsafe{
+                                slice::from_raw_parts(vector_ptr, BIT_VECTORS_PER_BLOCK)
+                            };
+                            
                             //read the milestones for this block
                             let mut milestones:[u64;AminoBwtBlock::NUM_MILESTONES] = [0; AminoBwtBlock::NUM_MILESTONES];
                             for milestone_idx in 0..milestones.len(){
@@ -240,14 +255,6 @@ impl FmIndex {
                                 milestones[milestone_idx] = u64::from_le_bytes(u64_buffer);
                             }
 
-                            //read the bit vectors for this block
-                            let mut bit_vector_buffer:[u8;32*AminoBwtBlock::NUM_BIT_VECTORS] = [0;32*AminoBwtBlock::NUM_BIT_VECTORS];
-                            fm_index_file.read_exact(&mut bit_vector_buffer)?;
-                            let buffer_ptr = bit_vector_buffer.as_ptr();
-                            let vector_ptr = buffer_ptr as *const Vec256;
-                            let bit_vector_slice = unsafe{
-                                slice::from_raw_parts(vector_ptr, AminoBwtBlock::NUM_BIT_VECTORS)
-                            };
                             bwt_block_list[block_idx] = AminoBwtBlock::from_data( bit_vector_slice.try_into().unwrap(), milestones);
                         }
                         Bwt::Amino(bwt_block_list)
@@ -258,14 +265,16 @@ impl FmIndex {
                 let mut prefix_sums:Vec<u64> = vec![0; alphabet.cardinality() as usize+1];
                 for prefix_sum_idx in 0..prefix_sums.len() {
                     fm_index_file.read_exact(&mut u64_buffer)?;
-                    prefix_sums[prefix_sum_idx] = u64::from_le_bytes(u64_buffer);
+                    let prefix_sum_value = u64::from_le_bytes(u64_buffer);
+                    prefix_sums[prefix_sum_idx] = prefix_sum_value;
                 }
 
-                let mut sampled_suffix_array = CompressedSuffixArray::new(compressed_suffix_array_len, suffix_array_compression_ratio);
+                let mut sampled_suffix_array = CompressedSuffixArray::new(bwt_len as usize, suffix_array_compression_ratio);
                         //write the sampled suffix array
-                for suffix_array_idx in 0..compressed_suffix_array_len{
+                for suffix_array_idx in 0..suffix_array_num_words{
                     fm_index_file.read_exact(&mut u64_buffer)?;
-                    sampled_suffix_array.set_value(u64::from_le_bytes(u64_buffer), suffix_array_idx);
+                    let sa_value = u64::from_le_bytes(u64_buffer);
+                    sampled_suffix_array.set_word(sa_value, suffix_array_idx);
                 }
 
                 let kmer_lookup_table = KmerLookupTable::from_file(fm_index_file, alphabet)?;

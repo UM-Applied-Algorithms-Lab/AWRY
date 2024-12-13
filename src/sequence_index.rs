@@ -161,18 +161,11 @@ impl SequenceIndex {
             //read the header. since header_len is non a constant, we need to read the header in chunks
             //and construct a string of length header_len
             let mut header_string = String::new();
-            let mut remaining_header_len = header_len;
-            while remaining_header_len > 0 {
-                let mut header_buffer: [u8; 1024] = [0; 1024];
-                if remaining_header_len > 1024 {
-                    reader.read_exact(&mut header_buffer)?;
-                    remaining_header_len -= 1024;
-                } else {
-                    reader.read_exact(&mut header_buffer[0..remaining_header_len as usize])?;
-                    remaining_header_len = 0;
-                }
-                //append the buffer to header_string
-                header_string.push_str(std::str::from_utf8(&header_buffer).unwrap());
+            header_string.reserve(header_len as usize);
+            for _ in 0..header_len{
+                let mut buf:[u8;1] = [0;1];
+                let _ = &reader.read(&mut buf);
+                header_string.push(buf[0] as char);
             }
 
             sequence_index.add_sequence(&header_string, start_position);

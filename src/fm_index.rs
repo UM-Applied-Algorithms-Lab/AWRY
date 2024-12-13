@@ -158,7 +158,7 @@ impl FmIndex {
             ignore_softmask: true,
             sequence_starts: seq_data.start_positions.into_iter().collect(),
             headers: seq_data.headers,
-            num_partitions: 2, //I have no idea why this is 2
+            num_partitions: 16, //the sufr library suggests 16 partitions
             sequence_delimiter,
         };
 
@@ -306,7 +306,7 @@ impl FmIndex {
     /// let suffix_array_compression_ratio = fm_index.suffix_array_compression_ratio();
     /// ```
     pub fn suffix_array_compression_ratio(&self) -> usize {
-        self.sampled_suffix_array.compression_ratio() 
+        self.sampled_suffix_array.compression_ratio()
     }
 
     /// Gets the length of the BWT
@@ -986,5 +986,48 @@ mod tests {
                 );
             }
         }
+    }
+    #[test]
+    fn save_load_equality_test() {
+        gen_multi_sequence_nucleotide_fasta(Path::new("large.fa"), 80, 40, 10..201)
+            .expect("unable to generate random nucleotide fasta");
+
+        let build_args = FmBuildArgs {
+            input_file_src: "large.fa".to_owned(),
+            suffix_array_output_src: None,
+            suffix_array_compression_ratio: Some(8),
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: true,
+        };
+        let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
+        fm_index
+            .save(Path::new("fm_large.awry"))
+            .expect("unable to save fm index");
+
+        let fm_index2 = FmIndex::load(Path::new("fm_large.awry")).expect("unable to load fm index");
+        assert_eq!(fm_index.alphabet(), fm_index2.alphabet());
+        assert_eq!(fm_index.bwt_len(), fm_index2.bwt_len());
+        assert_eq!(fm_index.version_number(), fm_index2.version_number());
+        assert_eq!(fm_index.bwt(), fm_index2.bwt());
+        assert_eq!(fm_index.prefix_sums(), fm_index2.prefix_sums());
+        assert_eq!(
+            fm_index.sampled_suffix_array(),
+            fm_index2.sampled_suffix_array()
+        );
+        for i in 0..fm_index.kmer_lookup_table().table().len() {
+            assert_eq!(
+                fm_index.kmer_lookup_table().table()[i],
+                fm_index2.kmer_lookup_table().table()[i]
+            );
+        }
+        assert_eq!(fm_index.kmer_lookup_table(), fm_index2.kmer_lookup_table());
+        assert_eq!(
+            fm_index.kmer_lookup_table().kmer_len(),
+            fm_index2.kmer_lookup_table().kmer_len()
+        );
+        assert_eq!(fm_index.sequence_index(), fm_index2.sequence_index());
+        assert_eq!(fm_index, fm_index2);
     }
 }

@@ -64,10 +64,12 @@ impl KmerLookupTable {
 
         table.range_table.reserve(kmer_table_num_entries);
         let mut u64_buffer: [u8; 8] = [0; 8];
-        for table_idx in 0..kmer_table_num_entries {
+        for _ in 0..kmer_table_num_entries {
             file.read_exact(&mut u64_buffer)?;
-            table.range_table[table_idx].start_ptr = u64::from_le_bytes(u64_buffer);
-            table.range_table[table_idx].end_ptr = u64::from_le_bytes(u64_buffer);
+            let start_ptr = u64::from_le_bytes(u64_buffer);
+            file.read_exact(&mut u64_buffer)?;
+            let end_ptr = u64::from_le_bytes(u64_buffer);
+            table.range_table.push(SearchRange{ start_ptr, end_ptr });
         }
 
         return Ok(table);
@@ -86,6 +88,7 @@ impl KmerLookupTable {
     /// Gets the SearchRange corresponding to the ginve kmer
     pub(crate) fn get_range_for_kmer(&self, fm_index: &FmIndex, kmer: &str) -> SearchRange {
         debug_assert!(kmer.len() >= self.kmer_len as usize);
+        debug_assert!(self.kmer_len != 0);
 
         let alphabet = fm_index.alphabet();
         let mut search_range = SearchRange::new(
