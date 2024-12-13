@@ -275,6 +275,10 @@ impl Bwt {
         }
     }
 
+    pub(crate) fn num_blocks(bwt_len: u64) -> usize {
+        bwt_len.div_ceil(Self::NUM_SYMBOLS_PER_BLOCK as u64) as usize
+    }
+
     /// reconstructs the symbol stored at the given bwt position
     pub  (crate) fn symbol_at(&self, bwt_position: &SearchPtr) -> Symbol {
         //find the block, byte, and bit of the data we're setting
@@ -392,13 +396,7 @@ mod tests {
                     position,
                     &Symbol::new_index(crate::alphabet::SymbolAlphabet::Nucleotide, symbol_idx),
                 );
-                let expected_value = match counts.get(&(position, symbol_idx)){
-                    Some(val) => val,
-                    None => {
-                        println!("failed to get value from hash table at pos {} idx {}", position, symbol_idx);
-                        panic!();
-                    },
-                };
+                let expected_value = counts.get(&(position, symbol_idx)).expect("failed to get value from hash table");
                 assert_eq!(occurrence_count, *expected_value, 
                     "nucleotide occurrence did not exactly match milestone in randomized bwt block, count for sym {}, pos {}.", symbol_idx, position);
             }

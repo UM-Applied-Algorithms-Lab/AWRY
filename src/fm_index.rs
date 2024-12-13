@@ -306,7 +306,7 @@ impl FmIndex {
     /// let suffix_array_compression_ratio = fm_index.suffix_array_compression_ratio();
     /// ```
     pub fn suffix_array_compression_ratio(&self) -> usize {
-        self.sampled_suffix_array.compression_ratio() 
+        self.sampled_suffix_array.compression_ratio()
     }
 
     /// Gets the length of the BWT
@@ -986,5 +986,135 @@ mod tests {
                 );
             }
         }
+    }
+    #[test]
+    fn large_test() {
+        use std::time::Instant;
+        const NUCLEOTIDES: [char; 4] = ['A', 'C', 'G', 'T'];
+        let input_fasta_file_src = "/home/teem/data/chr22_half.fa";
+        let fm_index_file_src = "/home/teem/data/chr22_half.awry";
+        let fm_index_file_path = Path::new(fm_index_file_src);
+        println!("building fm index from {}", input_fasta_file_src);
+        let build_args = FmBuildArgs {
+            input_file_src: input_fasta_file_src.to_owned(),
+            suffix_array_output_src: None,
+            suffix_array_compression_ratio: Some(8),
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: true,
+        };
+        {
+            println!("building awfm index");
+            let start_time = Instant::now();
+            let fm_index = FmIndex::new(&build_args).expect("Failed to build FM-index");
+            let end_time = Instant::now();
+            println!("Time taken to build FM-index: {:?}", end_time - start_time);
+
+            let save_start_time = Instant::now();
+            fm_index
+                .save(&fm_index_file_path)
+                .expect("unable to save FM-index");
+            let save_end_time = Instant::now();
+            println!(
+                "Time taken to save FM-index: {:?}",
+                save_end_time - save_start_time
+            );
+        }
+
+        println!("loading fm index from {}", fm_index_file_src);
+        let load_start_time = Instant::now();
+        let fm_index = FmIndex::load(&fm_index_file_path).expect("Failed to load FM-index");
+        let load_end_time = Instant::now();
+        println!(
+            "Time taken to load FM-index: {:?}",
+            load_end_time - load_start_time
+        );
+
+        let mut queries: Vec<String> = Vec::new();
+
+        let mut rng = rand::thread_rng();
+        println!("building query strings");
+        for _ in 0..100_000 {
+            //make randomized query length between 10 and 40
+            let query_len = rng.gen_range(10..40);
+
+            //make a string of length query_len of characters from NUCLEOTIDES
+            let mut query = String::new();
+            for _ in 0..query_len {
+                let idx = rng.gen_range(0..NUCLEOTIDES.len());
+                query.push(NUCLEOTIDES[idx]);
+            }
+            queries.push(query);
+        }
+
+        //time querying individually
+        {
+            println!("querying individually");
+            let start_time = Instant::now();
+            for query in queries.iter() {
+                let _result = fm_index.count_string(&query);
+            }
+            let end_time = Instant::now();
+            println!(
+                "Time taken to query individually: {:?}",
+                end_time - start_time
+            );
+        }
+
+        {
+            println!("querying in parallel");
+            //query in parallel
+            let parallel_start_time = Instant::now();
+            fm_index.parallel_count(&queries);
+            let parallel_end_time = Instant::now();
+            println!(
+                "Time taken to query in parallel: {:?}",
+                parallel_end_time - parallel_start_time
+            );
+        }
+    }
+    #[test]
+    fn save_load_equality_test() {
+        gen_multi_sequence_nucleotide_fasta(Path::new("large.fa"), 80, 40, 10..201)
+            .expect("unable to generate random nucleotide fasta");
+
+        let build_args = FmBuildArgs {
+            input_file_src: "large.fa".to_owned(),
+            suffix_array_output_src: None,
+            suffix_array_compression_ratio: Some(8),
+            lookup_table_kmer_len: None,
+            alphabet: SymbolAlphabet::Nucleotide,
+            max_query_len: None,
+            remove_intermediate_suffix_array_file: true,
+        };
+        let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
+        fm_index
+            .save(Path::new("fm_large.awry"))
+            .expect("unable to save fm index");
+
+        let fm_index2 = FmIndex::load(Path::new("fm_large.awry")).expect("unable to load fm index");
+        assert_eq!(fm_index.alphabet(), fm_index2.alphabet());
+        assert_eq!(fm_index.bwt_len(), fm_index2.bwt_len());
+        assert_eq!(fm_index.version_number(), fm_index2.version_number());
+        assert_eq!(fm_index.bwt(), fm_index2.bwt());
+        assert_eq!(fm_index.prefix_sums(), fm_index2.prefix_sums());
+        assert_eq!(
+            fm_index.sampled_suffix_array(),
+            fm_index2.sampled_suffix_array()
+        );
+        for i in 0..fm_index.kmer_lookup_table().table().len() {
+            assert_eq!(
+                fm_index.kmer_lookup_table().table()[i],
+                fm_index2.kmer_lookup_table().table()[i]
+            );
+        }
+        assert_eq!(fm_index.kmer_lookup_table(), fm_index2.kmer_lookup_table());
+        assert_eq!(
+            fm_index.kmer_lookup_table().kmer_len(),
+            fm_index2.kmer_lookup_table().kmer_len()
+        );
+        assert_eq!(fm_index.sequence_index(), fm_index2.sequence_index());
+        assert_eq!(fm_index, fm_index2);
     }
 }

@@ -59,6 +59,13 @@ impl CompressedSuffixArray {
         }
     }
 
+    ///sets the whole word in the data array. This is not the same as setting the value,
+    /// as the value is a few bits and represents a single value in the SA, while the word
+    /// represents a whole word in the backing array.
+    pub(crate) fn set_word(& mut self, value:u64, word_idx: usize){
+        self.data[word_idx] = value;
+    }
+
     ///reconstructs the value at the given index in the suffix array.
     /// If that position wasn't sampled (i.e., not divisible by the compression ratio),
     /// this function will return None.
