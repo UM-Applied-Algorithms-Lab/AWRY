@@ -1,5 +1,5 @@
 use anyhow::Ok;
-use libsufr::SequenceFileData;
+use libsufr::types::SequenceFileData;
 use serde::{Deserialize, Serialize};
 
 /// Struct representing the metadata for a sequence in the sequence index
