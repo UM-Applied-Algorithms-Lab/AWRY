@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use libsufr::{read_sequence_file, SufrBuilder, SufrBuilderArgs};
+use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
+use libsufr::sufr_file::SufrFile;
+use libsufr::util::read_sequence_file;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -165,7 +167,7 @@ impl FmIndex {
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
         sufr_builder.write(&suffix_array_src)?;
 
-        let sufr_file: libsufr::SufrFile<u64> = libsufr::SufrFile::read(&suffix_array_src)?;
+        let sufr_file: SufrFile<u64> = SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
         let sa_compression_ratio = args
             .suffix_array_compression_ratio
@@ -556,6 +558,7 @@ impl FmIndex {
 mod tests {
     use std::{collections::HashMap, io::Write, ops::Range, path::Path};
 
+    use libsufr::sufr_file::SufrFile;
     use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 
     use crate::alphabet::SymbolAlphabet;
@@ -569,7 +572,7 @@ mod tests {
     ) {
         let mut kmer_map: HashMap<String, Vec<usize>> = HashMap::new();
 
-        let sufr_file = libsufr::SufrFile::<u64>::read(&suffix_array_file_src)
+        let sufr_file = SufrFile::<u64>::read(&suffix_array_file_src)
             .expect("Could not read suffix array file");
 
         for text_position in 0..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
