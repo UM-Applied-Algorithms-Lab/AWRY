@@ -98,8 +98,8 @@ pub struct FmBuildArgs {
 impl FmBuildArgs {
     /// Creates a new FmBuildArgs struct with the given arguments
     pub fn new(
-        input_file_src: String,
-        suffix_array_output_src: Option<String>,
+        input_file_src: &str,
+        suffix_array_output_src: Option<&str>,
         suffix_array_compression_ratio: Option<u8>,
         lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
@@ -107,8 +107,8 @@ impl FmBuildArgs {
         remove_intermediate_suffix_array_file: bool,
     ) -> Self {
         FmBuildArgs {
-            input_file_src,
-            suffix_array_output_src,
+            input_file_src:input_file_src.to_owned(),
+            suffix_array_output_src: suffix_array_output_src.map(|s| s.to_owned()),
             suffix_array_compression_ratio,
             lookup_table_kmer_len,
             alphabet,
@@ -374,7 +374,7 @@ impl FmIndex {
     }
 
     /// Finds the search range for the given query. This is the heart of the count() and locate() functions.
-    pub(crate) fn get_search_range_for_string(&self, query: &String) -> SearchRange {
+    pub(crate) fn get_search_range_for_string(&self, query: &str) -> SearchRange {
         if query.len() < self.kmer_lookup_table.kmer_len() as usize {
             let alphabet = self.alphabet();
             let final_query_index =
@@ -412,7 +412,7 @@ impl FmIndex {
     /// ```no_run
     /// use awry::fm_index::{FmIndex, FmBuildArgs};
     /// use std::path::Path;
-    /// let queries = vec![String::from("ACGT"), String::from("ACGT")];
+    /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let counts = fm_index.parallel_count(&queries);    
@@ -420,7 +420,7 @@ impl FmIndex {
     ///     println!("count: {}", count);
     /// }
     /// ```
-    pub fn parallel_count(&self, queries: &Vec<String>) -> Vec<u64> {
+    pub fn parallel_count(&self, queries: &Vec<&str>) -> Vec<u64> {
         queries
             .into_par_iter()
             .map(|query| self.count_string(&query))
@@ -433,7 +433,7 @@ impl FmIndex {
     /// ```no_run
     /// use awry::fm_index::{FmIndex, FmBuildArgs};
     /// use std::path::Path;
-    /// let queries = vec![String::from("ACGT"), String::from("ACGT")];
+    /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let query_location_list = fm_index.parallel_locate(&queries);
@@ -443,7 +443,7 @@ impl FmIndex {
     ///     }
     /// }
     /// ```
-    pub fn parallel_locate(&self, queries: &Vec<String>) -> Vec<Vec<LocalizedSequencePosition>> {
+    pub fn parallel_locate(&self, queries: &Vec<&str>) -> Vec<Vec<LocalizedSequencePosition>> {
         queries
             .into_par_iter()
             .map(|query| self.locate_string(&query))
@@ -460,7 +460,7 @@ impl FmIndex {
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let count = fm_index.count_string(&String::from("ACGT"));
     /// ```
-    pub fn count_string(&self, query: &String) -> u64 {
+    pub fn count_string(&self, query: &str) -> u64 {
         self.get_search_range_for_string(query).len()
     }
 
@@ -477,7 +477,7 @@ impl FmIndex {
     ///     println!("location: {:?}", location);
     /// }
     /// ```
-    pub fn locate_string(&self, query: &String) -> Vec<LocalizedSequencePosition> {
+    pub fn locate_string(&self, query: &str) -> Vec<LocalizedSequencePosition> {
         let mut string_locations: Vec<LocalizedSequencePosition> = Vec::new();
         let search_range = self.get_search_range_for_string(query);
 
