@@ -140,6 +140,7 @@ impl FmIndex {
     /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
     /// ```
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
+        println!("building fm index");
         let suffix_array_src = args
             .suffix_array_output_src
             .clone()
@@ -150,7 +151,9 @@ impl FmIndex {
         } else {
             b'X'
         };
+        println!("reading sequence file");
         let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
+        println!("creating sequence index");
         let sequence_index = SequenceIndex::from_seq_file_data(&seq_data);
 
         let sufr_builder_args = SufrBuilderArgs {
@@ -164,21 +167,23 @@ impl FmIndex {
             num_partitions: 1024, //the sufr library suggests 16 partitions
             sequence_delimiter,
         };
-
+        println!("creating sufr builder");
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
+        println!("writing sufr file");
         sufr_builder.write(&suffix_array_src)?;
-
+        println!("reading sufr file");
         let sufr_file: SufrFile<u64> = SufrFile::read(&suffix_array_src)?;
         let bwt_len = sufr_file.num_suffixes;
         let sa_compression_ratio = args
             .suffix_array_compression_ratio
             .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
+        println!("creating compressed suffix array");
         let mut compressed_suffix_array =
             CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as usize);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
-
+        println!("creating bwt");
         let mut bwt = match args.alphabet {
             SymbolAlphabet::Nucleotide => {
                 Bwt::Nucleotide(vec![NucleotideBwtBlock::new(); num_bwt_blocks as usize])
@@ -190,7 +195,7 @@ impl FmIndex {
 
         let alphabet_cardinality = args.alphabet.cardinality();
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
-
+        println!("populating kmer lookup table");
         let mut suffix_array_file_access = sufr_file.suffix_array_file;
         for (suffix_idx, suffix_array_value) in suffix_array_file_access.iter().enumerate() {
             //generate the sampled suffix array
