@@ -3,10 +3,11 @@ use crate::{
     search::SearchPtr,
     simd_instructions::{Vec256, SimdVec256},
 };
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 #[repr(align(32))]
 pub (crate) struct NucleotideBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -14,7 +15,7 @@ pub (crate) struct NucleotideBwtBlock {
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 #[repr(align(32))]
 pub  (crate) struct AminoBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -249,7 +250,7 @@ impl AminoBwtBlock {
 }
 
 /// enum representing a BWT, either as Nucleotide symbols or Amino symbols
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, MemSize)]
 #[serde(untagged)]
 pub (crate) enum Bwt {
     Nucleotide(Vec<NucleotideBwtBlock>),

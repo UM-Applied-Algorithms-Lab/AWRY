@@ -10,10 +10,11 @@ use std::arch::aarch64::{
     vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64,
 };
 
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default,
+    Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize,
 )]
 pub(crate) struct Vec256 {
     data: [u64; 4],

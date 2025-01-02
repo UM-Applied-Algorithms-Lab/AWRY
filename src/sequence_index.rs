@@ -1,16 +1,17 @@
 use anyhow::Ok;
 use libsufr::types::SequenceFileData;
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 /// Struct representing the metadata for a sequence in the sequence index
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 pub(crate) struct SequenceMetadata {
     start_position: usize,
     header: String,
 }
 
 /// Struct representing a sequence index, which maintains a list of all sequence headers and their start positions
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 pub(crate) struct SequenceIndex {
     sequences: Vec<SequenceMetadata>,
 }

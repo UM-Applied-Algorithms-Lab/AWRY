@@ -1,3 +1,4 @@
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 use crate::{alphabet::Symbol, fm_index::FmIndex};
@@ -18,7 +19,7 @@ pub (crate)  type SearchPtr = u64;
 /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
 /// let search_range = SearchRange::new(&fm_index, Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
 /// ```
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 pub struct SearchRange {
     pub start_ptr: SearchPtr,
     pub end_ptr: SearchPtr,

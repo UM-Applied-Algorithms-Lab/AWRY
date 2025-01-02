@@ -3,6 +3,7 @@ use std::path::Path;
 use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
 use libsufr::sufr_file::SufrFile;
 use libsufr::util::read_sequence_file;
+use mem_dbg::MemSize;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +37,7 @@ const FM_VERSION_NUMBER: u64 = 1;
 /// };
 /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
 /// ```
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, MemSize)]
 pub struct FmIndex {
     ///BWT-component of the FM-index
     bwt: Bwt,
