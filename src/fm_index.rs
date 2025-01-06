@@ -166,14 +166,17 @@ impl FmIndex {
             headers: seq_data.headers,
             num_partitions: 1024, //the sufr library suggests 16 partitions
             sequence_delimiter,
+            seed_mask: None,
+            random_seed: 0,
         };
         println!("creating sufr builder");
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
         println!("writing sufr file");
         sufr_builder.write(&suffix_array_src)?;
         println!("reading sufr file");
-        let sufr_file: SufrFile<u64> = SufrFile::read(&suffix_array_src)?;
-        let bwt_len = sufr_file.num_suffixes;
+        //"low_memory" arg on read(), if true, keeps the SA and sequence on-disk, which is not what we usually want.
+        let sufr_file: SufrFile<u64> = SufrFile::read(&suffix_array_src, false)?;
+        let bwt_len = sufr_file.len_suffixes;
         let sa_compression_ratio = args
             .suffix_array_compression_ratio
             .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
@@ -578,7 +581,7 @@ mod tests {
     ) {
         let mut kmer_map: HashMap<String, Vec<usize>> = HashMap::new();
 
-        let sufr_file = SufrFile::<u64>::read(&suffix_array_file_src)
+        let sufr_file = SufrFile::<u64>::read(&suffix_array_file_src, false)
             .expect("Could not read suffix array file");
 
         for text_position in 0..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
