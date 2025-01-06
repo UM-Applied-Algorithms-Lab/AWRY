@@ -28,7 +28,7 @@ impl FmIndex {
     /// 
     ///
     /// let build_args = FmBuildArgs {
-    ///     input_file_src: "test.fasta".to_owned(),
+    ///     input_file_src: "test.fasta".into(),
     ///     suffix_array_output_src: None,
     ///     suffix_array_compression_ratio: Some(16),
     ///     lookup_table_kmer_len: None,
@@ -115,7 +115,7 @@ impl FmIndex {
     /// 
     ///
     /// let build_args = FmBuildArgs {
-    ///     input_file_src: "test.fasta".to_owned(),
+    ///     input_file_src: "test.fasta".into(),
     ///     suffix_array_output_src: None,
     ///     suffix_array_compression_ratio: Some(16),
     ///     lookup_table_kmer_len: None,

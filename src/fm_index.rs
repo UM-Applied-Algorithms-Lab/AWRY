@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
 use libsufr::sufr_file::SufrFile;
@@ -27,7 +27,7 @@ const FM_VERSION_NUMBER: u64 = 1;
 /// use awry::alphabet::SymbolAlphabet;
 ///
 /// let build_args = FmBuildArgs {
-///     input_file_src: "test.fasta".to_owned(),
+///     input_file_src: "test.fasta".into(),
 ///     suffix_array_output_src: None,
 ///     suffix_array_compression_ratio: None,
 ///     lookup_table_kmer_len: None,
@@ -65,7 +65,7 @@ const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 /// use awry::alphabet::SymbolAlphabet;
 ///
 /// let build_args = FmBuildArgs {
-///     input_file_src: "test.fasta".to_owned(),
+///     input_file_src: "test.fasta".into(), ///     
 ///     suffix_array_output_src: None,
 ///     suffix_array_compression_ratio: Some(16),
 ///     lookup_table_kmer_len: None,
@@ -77,9 +77,9 @@ const DEFAULT_SUFFIX_ARRAY_FILE_NAME: &str = "sa.sufr";
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FmBuildArgs {
     ///file source for the input, either Fasta or Fastq format
-    pub input_file_src: String,
+    pub input_file_src: PathBuf,
     ///file source to output the intermediate suffix array file.
-    pub suffix_array_output_src: Option<String>,
+    pub suffix_array_output_src: Option<PathBuf>,
     ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
     pub suffix_array_compression_ratio: Option<u8>,
     ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory.
@@ -98,8 +98,8 @@ pub struct FmBuildArgs {
 impl FmBuildArgs {
     /// Creates a new FmBuildArgs struct with the given arguments
     pub fn new(
-        input_file_src: &str,
-        suffix_array_output_src: Option<&str>,
+        input_file_src: PathBuf,
+        suffix_array_output_src: Option<PathBuf>,
         suffix_array_compression_ratio: Option<u8>,
         lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
@@ -107,8 +107,8 @@ impl FmBuildArgs {
         remove_intermediate_suffix_array_file: bool,
     ) -> Self {
         FmBuildArgs {
-            input_file_src:input_file_src.to_owned(),
-            suffix_array_output_src: suffix_array_output_src.map(|s| s.to_owned()),
+            input_file_src: input_file_src,
+            suffix_array_output_src,
             suffix_array_compression_ratio,
             lookup_table_kmer_len,
             alphabet,
@@ -129,7 +129,7 @@ impl FmIndex {
     /// use awry::alphabet::SymbolAlphabet;
     ///
     /// let build_args = FmBuildArgs {
-    ///     input_file_src: "test.fasta".to_owned(),
+    ///     input_file_src: "test.fasta".into(),
     ///     suffix_array_output_src: None,
     ///     suffix_array_compression_ratio: None,
     ///     lookup_table_kmer_len: None,
@@ -144,7 +144,7 @@ impl FmIndex {
         let suffix_array_src = args
             .suffix_array_output_src
             .clone()
-            .unwrap_or(DEFAULT_SUFFIX_ARRAY_FILE_NAME.to_owned());
+            .unwrap_or(PathBuf::from(DEFAULT_SUFFIX_ARRAY_FILE_NAME));
 
         let sequence_delimiter = if args.alphabet == SymbolAlphabet::Nucleotide {
             b'N'
@@ -152,7 +152,13 @@ impl FmIndex {
             b'X'
         };
         println!("reading sequence file");
-        let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
+        let seq_data = read_sequence_file(
+            &args
+                .input_file_src
+                .to_str()
+                .expect("unable to parse input file src to string"),
+            sequence_delimiter,
+        )?;
         println!("creating sequence index");
         let sequence_index = SequenceIndex::from_seq_file_data(&seq_data);
 
@@ -172,10 +178,19 @@ impl FmIndex {
         println!("creating sufr builder");
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
         println!("writing sufr file");
-        sufr_builder.write(&suffix_array_src)?;
+        sufr_builder.write(
+            &suffix_array_src
+                .to_str()
+                .expect("unable to parse suffix array src to string"),
+        )?;
         println!("reading sufr file");
         //"low_memory" arg on read(), if true, keeps the SA and sequence on-disk, which is not what we usually want.
-        let sufr_file: SufrFile<u64> = SufrFile::read(&suffix_array_src, false)?;
+        let sufr_file: SufrFile<u64> = SufrFile::read(
+            &suffix_array_src
+                .to_str()
+                .expect("unable to parse suffix array src to string"),
+            false,
+        )?;
         let bwt_len = sufr_file.len_suffixes;
         let sa_compression_ratio = args
             .suffix_array_compression_ratio
@@ -565,7 +580,12 @@ impl FmIndex {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io::Write, ops::Range, path::Path};
+    use std::{
+        collections::HashMap,
+        io::Write,
+        ops::Range,
+        path::{Path, PathBuf},
+    };
 
     use libsufr::sufr_file::SufrFile;
     use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
@@ -576,13 +596,18 @@ mod tests {
 
     fn compare_index_to_reference(
         fm_index: &FmIndex,
-        suffix_array_file_src: &str,
+        suffix_array_file_src: &PathBuf,
         test_kmer_len: usize,
     ) {
         let mut kmer_map: HashMap<String, Vec<usize>> = HashMap::new();
 
-        let sufr_file = SufrFile::<u64>::read(&suffix_array_file_src, false)
-            .expect("Could not read suffix array file");
+        let sufr_file = SufrFile::<u64>::read(
+            &suffix_array_file_src
+                .to_str()
+                .expect("unable to parse suffix array src to string"),
+            false,
+        )
+        .expect("Could not read suffix array file");
 
         for text_position in 0..sufr_file.text_len.saturating_sub(test_kmer_len as u64) as usize {
             let data_slice = &sufr_file.text[text_position..text_position + test_kmer_len];
@@ -629,17 +654,17 @@ mod tests {
         const FASTA_SRC: &str = "test_nucleotide.fasta";
         const FASTA_LINE_LEN: u8 = 80;
         const FASTA_SEQ_LEN: usize = 1847;
-        const NUCLEOTIDE_FASTA_SRC: &str = "test_nucleotide.fasta";
-        const SUFFIX_ARRAY_FILE_SRC: &str = "test_nucleotide.sufr";
-        const FM_INDEX_SRC: &str = "test_nucleotide.awry";
+        let nucleotide_fasta_src: PathBuf = PathBuf::from("test_nucleotide.fasta");
+        let suffix_array_file_src: PathBuf = PathBuf::from("test_nucleotide.sufr");
+        let fm_index_src: PathBuf = PathBuf::from("test_nucleotide.awry");
 
         gen_rand_nucleotide_file(&Path::new(FASTA_SRC), FASTA_LINE_LEN, FASTA_SEQ_LEN)
             .expect("unable to generate random nucleotide fasta");
 
         //create the fm index
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: NUCLEOTIDE_FASTA_SRC.to_owned(),
-            suffix_array_output_src: Some(SUFFIX_ARRAY_FILE_SRC.to_owned()),
+            input_file_src: nucleotide_fasta_src,
+            suffix_array_output_src: Some(suffix_array_file_src.clone()),
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
@@ -650,11 +675,11 @@ mod tests {
 
         //save the fm index to file
         fm_index
-            .save(&Path::new(&FM_INDEX_SRC))
+            .save(&Path::new(&fm_index_src))
             .expect("unable to save fm index to file");
 
         //create map of kmer->Vec<position>
-        compare_index_to_reference(&fm_index, &SUFFIX_ARRAY_FILE_SRC, TEST_KMER_LEN);
+        compare_index_to_reference(&fm_index, &suffix_array_file_src, TEST_KMER_LEN);
 
         Ok(())
     }
@@ -677,8 +702,8 @@ mod tests {
 
         //create the fm index
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: fasta_src.clone(),
-            suffix_array_output_src: Some(suffix_array_file_src.clone()),
+            input_file_src: PathBuf::from(fasta_src),
+            suffix_array_output_src: Some(PathBuf::from(&suffix_array_file_src)),
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Amino,
@@ -693,7 +718,11 @@ mod tests {
             .expect("unable to save fm index to file");
 
         //create map of kmer->Vec<position>
-        compare_index_to_reference(&fm_index, &suffix_array_file_src, TEST_KMER_LEN);
+        compare_index_to_reference(
+            &fm_index,
+            &PathBuf::from(suffix_array_file_src),
+            TEST_KMER_LEN,
+        );
 
         Ok(())
     }
@@ -712,8 +741,8 @@ mod tests {
         let sequences = generate_random_fastq(FASTQ_SRC, sequence_lengths);
 
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: FASTQ_SRC.to_owned(),
-            suffix_array_output_src: Some(SUFFIX_ARRAY_SRC.to_owned()),
+            input_file_src: PathBuf::from(FASTQ_SRC), 
+            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)), 
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
@@ -966,8 +995,8 @@ mod tests {
 
         //create the fm index
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: FASTA_SRC.to_owned(),
-            suffix_array_output_src: Some(SUFFIX_ARRAY_SRC.to_owned()),
+            input_file_src: PathBuf::from(FASTA_SRC), 
+            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)), 
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
@@ -1005,7 +1034,7 @@ mod tests {
             .expect("unable to generate random nucleotide fasta");
 
         let build_args = FmBuildArgs {
-            input_file_src: "large.fa".to_owned(),
+            input_file_src: PathBuf::from("large.fa"), 
             suffix_array_output_src: None,
             suffix_array_compression_ratio: Some(8),
             lookup_table_kmer_len: None,
