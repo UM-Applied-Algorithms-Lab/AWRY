@@ -4,7 +4,7 @@ use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
 use libsufr::sufr_file::SufrFile;
 use libsufr::util::read_sequence_file;
 use mem_dbg::MemSize;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
