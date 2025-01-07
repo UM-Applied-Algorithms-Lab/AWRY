@@ -4,7 +4,7 @@ use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
 use libsufr::sufr_file::SufrFile;
 use libsufr::util::read_sequence_file;
 use mem_dbg::MemSize;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -426,7 +426,7 @@ impl FmIndex {
         }
     }
 
-    // Finds the counts for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
+    // Finds the counts for each query in the query list. This function uses rayon's par_iter() for parallelism.
     ///
     /// # Example
     /// ```no_run
@@ -442,12 +442,12 @@ impl FmIndex {
     /// ```
     pub fn parallel_count(&self, queries: &Vec<&str>) -> Vec<u64> {
         queries
-            .into_par_iter()
+            .par_iter()
             .map(|query| self.count_string(&query))
             .collect()
     }
 
-    // Finds the locations for each query in the query list. This function uses rayon's into_par_iter() for parallelism.
+    // Finds the locations for each query in the query list. This function uses rayon's par_iter() for parallelism.
     ///
     /// # Example
     /// ```no_run
@@ -465,7 +465,7 @@ impl FmIndex {
     /// ```
     pub fn parallel_locate(&self, queries: &Vec<&str>) -> Vec<Vec<LocalizedSequencePosition>> {
         queries
-            .into_par_iter()
+            .par_iter()
             .map(|query| self.locate_string(&query))
             .collect()
     }
