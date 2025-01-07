@@ -153,10 +153,7 @@ impl FmIndex {
         };
         println!("reading sequence file");
         let seq_data = read_sequence_file(
-            &args
-                .input_file_src
-                .to_str()
-                .expect("unable to parse input file src to string"),
+            &args.input_file_src,
             sequence_delimiter,
         )?;
         println!("creating sequence index");
