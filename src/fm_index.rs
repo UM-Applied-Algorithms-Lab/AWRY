@@ -548,21 +548,23 @@ impl FmIndex {
         search_range: SearchRange,
         query_symbol: Symbol,
     ) -> SearchRange {
-        let query_symbol_idx = query_symbol.index() as usize;
-        let letter_prefix_sum = self.prefix_sums[query_symbol_idx];
-        let new_start_ptr = letter_prefix_sum
-            + self
-                .bwt
-                .global_occurrence(search_range.start_ptr - 1, &query_symbol);
-        let new_end_ptr = letter_prefix_sum
-            + self
-                .bwt
-                .global_occurrence(search_range.end_ptr, &query_symbol)
-            - 1;
+        unsafe {
+            let query_symbol_idx = query_symbol.index() as usize;
+            let letter_prefix_sum = self.prefix_sums.get_unchecked(query_symbol_idx);
+            let new_start_ptr = letter_prefix_sum
+                + self
+                    .bwt
+                    .global_occurrence(search_range.start_ptr - 1, &query_symbol);
+            let new_end_ptr = letter_prefix_sum
+                + self
+                    .bwt
+                    .global_occurrence(search_range.end_ptr, &query_symbol)
+                - 1;
 
-        SearchRange {
-            start_ptr: new_start_ptr,
-            end_ptr: new_end_ptr,
+            SearchRange {
+                start_ptr: new_start_ptr,
+                end_ptr: new_end_ptr,
+            }
         }
     }
 
@@ -741,8 +743,8 @@ mod tests {
         let sequences = generate_random_fastq(FASTQ_SRC, sequence_lengths);
 
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: PathBuf::from(FASTQ_SRC), 
-            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)), 
+            input_file_src: PathBuf::from(FASTQ_SRC),
+            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)),
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
@@ -995,8 +997,8 @@ mod tests {
 
         //create the fm index
         let fm_index = FmIndex::new(&FmBuildArgs {
-            input_file_src: PathBuf::from(FASTA_SRC), 
-            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)), 
+            input_file_src: PathBuf::from(FASTA_SRC),
+            suffix_array_output_src: Some(PathBuf::from(SUFFIX_ARRAY_SRC)),
             suffix_array_compression_ratio: None,
             lookup_table_kmer_len: None,
             alphabet: SymbolAlphabet::Nucleotide,
@@ -1034,7 +1036,7 @@ mod tests {
             .expect("unable to generate random nucleotide fasta");
 
         let build_args = FmBuildArgs {
-            input_file_src: PathBuf::from("large.fa"), 
+            input_file_src: PathBuf::from("large.fa"),
             suffix_array_output_src: None,
             suffix_array_compression_ratio: Some(8),
             lookup_table_kmer_len: None,

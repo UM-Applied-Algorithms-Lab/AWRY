@@ -4,14 +4,18 @@ use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 /// Struct representing the metadata for a sequence in the sequence index
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
+#[derive(
+    Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize,
+)]
 pub(crate) struct SequenceMetadata {
     start_position: usize,
     header: String,
 }
 
 /// Struct representing a sequence index, which maintains a list of all sequence headers and their start positions
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
+#[derive(
+    Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize,
+)]
 pub(crate) struct SequenceIndex {
     sequences: Vec<SequenceMetadata>,
 }
@@ -27,16 +31,16 @@ pub(crate) struct SequenceIndex {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct LocalizedSequencePosition {
     sequence_idx: usize,
-     local_position: usize,
+    local_position: usize,
 }
 
 impl LocalizedSequencePosition {
     /// Creates a new LocalizedSequencePosition
-    /// 
+    ///
     /// # Example
     /// ```
     /// use awry::sequence_index::LocalizedSequencePosition;
-    /// 
+    ///
     /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
     /// assert_eq!(localized_sequence_position.sequence_idx(), 0);
     /// assert_eq!(localized_sequence_position.local_position(), 0);
@@ -48,26 +52,26 @@ impl LocalizedSequencePosition {
         }
     }
     /// Gets the sequence index
-    /// 
+    ///
     /// # Example
     /// ```
     /// use awry::sequence_index::LocalizedSequencePosition;
-    /// 
+    ///
     /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
     /// assert_eq!(localized_sequence_position.sequence_idx(), 0);
-    /// ``` 
+    /// ```
     pub fn sequence_idx(&self) -> usize {
         self.sequence_idx
     }
     /// Gets the local position
-    /// 
+    ///
     /// # Example
     /// ```
     /// use awry::sequence_index::LocalizedSequencePosition;
-    /// 
+    ///
     /// let localized_sequence_position = LocalizedSequencePosition::new(0, 0);
     /// assert_eq!(localized_sequence_position.local_position(), 0);
-    /// ``` 
+    /// ```
     pub fn local_position(&self) -> usize {
         self.local_position
     }
@@ -114,22 +118,25 @@ impl SequenceIndex {
         range_low: usize,
         range_high: usize,
     ) -> Option<LocalizedSequencePosition> {
-        if range_low == range_high {
-            return Some(LocalizedSequencePosition::new(
-                range_low,
-                global_position - self.sequences[range_low].start_position,
-            ));
-        }
-        let midpoint = (range_low + range_high) / 2;
-        if self.sequences[midpoint].start_position > global_position {
-            self.find_sequence_binary_search(global_position, range_low, midpoint)
-        } else if self.sequences[midpoint].start_position < global_position {
-            self.find_sequence_binary_search(global_position, midpoint, range_high)
-        } else {
-            Some(LocalizedSequencePosition {
-                sequence_idx: midpoint,
-                local_position: global_position - self.sequences[midpoint].start_position,
-            })
+        unsafe {
+            if range_low == range_high {
+                return Some(LocalizedSequencePosition::new(
+                    range_low,
+                    global_position - self.sequences.get_unchecked(range_low).start_position,
+                ));
+            }
+            let midpoint = (range_low + range_high) / 2;
+            let midpoint_start_position = self.sequences.get_unchecked(midpoint).start_position;
+            if midpoint_start_position > global_position { 
+                self.find_sequence_binary_search(global_position, range_low, midpoint)
+            } else if midpoint_start_position < global_position {
+                self.find_sequence_binary_search(global_position, midpoint, range_high)
+            } else {
+                Some(LocalizedSequencePosition {
+                    sequence_idx: midpoint,
+                    local_position: global_position - midpoint_start_position,
+                })
+            }
         }
     }
 
@@ -163,8 +170,8 @@ impl SequenceIndex {
             //and construct a string of length header_len
             let mut header_string = String::new();
             header_string.reserve(header_len as usize);
-            for _ in 0..header_len{
-                let mut buf:[u8;1] = [0;1];
+            for _ in 0..header_len {
+                let mut buf: [u8; 1] = [0; 1];
                 let _ = &reader.read(&mut buf);
                 header_string.push(buf[0] as char);
             }

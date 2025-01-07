@@ -14,7 +14,18 @@ use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Clone, Serialize, Deserialize, Debug, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize,
+    Clone,
+    Serialize,
+    Deserialize,
+    Debug,
+    Copy,
+    PartialEq,
+    PartialOrd,
+    Eq,
+    Ord,
+    Hash,
+    Default,
+    MemSize,
 )]
 pub(crate) struct Vec256 {
     data: [u64; 4],
@@ -28,14 +39,19 @@ impl Vec256 {
     pub(crate) fn extract_bit(&self, bit_idx: &u64) -> u64 {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
-        return self.data[word_idx as usize] >> bit_idx & 1;
+        unsafe {
+            return self.data.get_unchecked(word_idx as usize) >> bit_idx & 1;
+        }
     }
     /// Sets the bit at the given bit index
     pub(crate) fn set_bit(&mut self, bit_idx: &u64) {
         let word_idx = bit_idx / 64;
         let bit_idx = bit_idx % 64;
-        self.data[word_idx as usize] |= 1 << bit_idx;
+        unsafe {
+            *self.data.get_unchecked_mut(word_idx as usize) |= 1 << bit_idx;
+        }
     }
+
     pub(crate) fn data(&self) -> &[u64; 4] {
         &self.data
     }
@@ -79,7 +95,6 @@ impl From<Vec256> for SimdVec256 {
 
 #[cfg(target_arch = "x86_64")]
 impl SimdVec256 {
-
     pub(crate) fn and(&self, vec2: &SimdVec256) -> SimdVec256 {
         unsafe {
             SimdVec256 {
@@ -105,22 +120,26 @@ impl SimdVec256 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
 
-        for bitmask_word_idx in 0..bitmask_quad_word_index {
-            bitmasks[bitmask_word_idx] = !0;
-        }
-        bitmasks[bitmask_quad_word_index] = !0u64 >> (63 - (local_query_position % 64));
-
-        let mut popcount = 0;
         unsafe {
-            popcount += (_mm256_extract_epi64::<0>(self.data) as u64 & bitmasks[0]).count_ones();
-            popcount += (_mm256_extract_epi64::<1>(self.data) as u64 & bitmasks[1]).count_ones();
-            popcount += (_mm256_extract_epi64::<2>(self.data) as u64 & bitmasks[2]).count_ones();
-            popcount += (_mm256_extract_epi64::<3>(self.data) as u64 & bitmasks[3]).count_ones();
+            for bitmask_word_idx in 0..bitmask_quad_word_index {
+                *bitmasks.get_unchecked_mut(bitmask_word_idx) = !0;
+            }
+            *bitmasks.get_unchecked_mut(bitmask_quad_word_index) =
+                !0u64 >> (63 - (local_query_position % 64));
+
+            let mut popcount = 0;
+            popcount += (_mm256_extract_epi64::<0>(self.data) as u64 & bitmasks.get_unchecked(0))
+                .count_ones();
+            popcount += (_mm256_extract_epi64::<1>(self.data) as u64 & bitmasks.get_unchecked(1))
+                .count_ones();
+            popcount += (_mm256_extract_epi64::<2>(self.data) as u64 & bitmasks.get_unchecked(2))
+                .count_ones();
+            popcount += (_mm256_extract_epi64::<3>(self.data) as u64 & bitmasks.get_unchecked(3))
+                .count_ones();
+
+            return popcount;
         }
-
-        return popcount;
     }
-
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -173,22 +192,25 @@ impl SimdVec256 {
     pub(crate) fn masked_popcount(&self, local_query_position: u64) -> u32 {
         let mut bitmasks: [u64; 4] = [0; 4];
         let bitmask_quad_word_index: usize = (local_query_position / 64) as usize;
-
-        for bitmask_word_idx in 0..bitmask_quad_word_index {
-            bitmasks[bitmask_word_idx] = !0;
-        }
-        bitmasks[bitmask_quad_word_index] = !0 >> (63 - (local_query_position % 64));
-
-        let mut popcount = 0;
         unsafe {
-            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.0, 0) as u64 & bitmasks[0])
-                .count_ones();
-            popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(self.data.0, 1) & bitmasks[1]).count_ones();
-            popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(self.data.1, 0) & bitmasks[2]).count_ones();
-            popcount +=
-                (std::arch::aarch64::vgetq_lane_u64(self.data.1, 1) & bitmasks[3]).count_ones();
+            for bitmask_word_idx in 0..bitmask_quad_word_index {
+                *bitmasks.get_unchecked_mut(bitmask_word_idx) = !0;
+            }
+            bitmasks[bitmask_quad_word_index] = !0 >> (63 - (local_query_position % 64));
+
+            let mut popcount = 0;
+            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.0, 0) as u64
+                & bitmasks.get_unchecked(0))
+            .count_ones();
+            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.0, 1)
+                & bitmasks.get_unchecked(1))
+            .count_ones();
+            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.1, 0)
+                & bitmasks.get_unchecked(2))
+            .count_ones();
+            popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.1, 1)
+                & bitmasks.get_unchecked(3))
+            .count_ones();
         }
         return popcount;
     }

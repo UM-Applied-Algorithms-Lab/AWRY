@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 /// the original position when used in conjunction with the rest of the FM-index.
 /// The Suffix Array values stored inside this struct are bit-compressed to take up as little space as possible in memory.
 ///
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
+#[derive(
+    Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize,
+)]
 pub(crate) struct CompressedSuffixArray {
     ///Actual Suffix Array values, compressed to remove leading zeros
     data: Vec<u64>,
@@ -24,7 +26,8 @@ impl CompressedSuffixArray {
             "length of compressed suffix array should not be zero"
         );
         let bits_per_element = Self::bits_per_element(uncompressed_length);
-        let suffix_array_num_words =Self::compressed_word_len(uncompressed_length, suffix_array_compression_ratio);
+        let suffix_array_num_words =
+            Self::compressed_word_len(uncompressed_length, suffix_array_compression_ratio);
 
         CompressedSuffixArray {
             data: vec![0; suffix_array_num_words],
@@ -63,7 +66,7 @@ impl CompressedSuffixArray {
     ///sets the whole word in the data array. This is not the same as setting the value,
     /// as the value is a few bits and represents a single value in the SA, while the word
     /// represents a whole word in the backing array.
-    pub(crate) fn set_word(& mut self, value:u64, word_idx: usize){
+    pub(crate) fn set_word(&mut self, value: u64, word_idx: usize) {
         self.data[word_idx] = value;
     }
 
@@ -71,32 +74,34 @@ impl CompressedSuffixArray {
     /// If that position wasn't sampled (i.e., not divisible by the compression ratio),
     /// this function will return None.
     pub(crate) fn reconstruct_value(&self, position: usize) -> Option<u64> {
-        //if the position isn't sampled, return None to show it
-        if position % self.suffix_array_compression_ratio as usize != 0 {
-            return None;
-        }
-        let sampled_position = position / self.suffix_array_compression_ratio as usize;
-        let word_position = (sampled_position * self.bits_per_element as usize) / 64;
-        let first_word_bit_start_position =
-            (sampled_position * self.bits_per_element as usize) % 64;
-        let first_word_num_bits = self
-            .bits_per_element
-            .min(64 - first_word_bit_start_position);
-        let second_word_num_bits = self.bits_per_element - first_word_num_bits;
+        unsafe {
+            //if the position isn't sampled, return None to show it
+            if position % self.suffix_array_compression_ratio as usize != 0 {
+                return None;
+            }
+            let sampled_position = position / self.suffix_array_compression_ratio as usize;
+            let word_position = (sampled_position * self.bits_per_element as usize) / 64;
+            let first_word_bit_start_position =
+                (sampled_position * self.bits_per_element as usize) % 64;
+            let first_word_num_bits = self
+                .bits_per_element
+                .min(64 - first_word_bit_start_position);
+            let second_word_num_bits = self.bits_per_element - first_word_num_bits;
 
-        let first_word_bitmask = (1 << first_word_num_bits) - 1;
-        let first_word_value_bits =
-            (self.data[word_position] >> first_word_bit_start_position) & first_word_bitmask;
-        //construct the second word in an IF statement because otherwise the array
-        //could go out of bounds if the suffix array ends at this word.
-        if second_word_num_bits != 0 {
-            let second_word_bitmask = (1 << second_word_num_bits) - 1;
-            let second_word_value_bits =
-                (self.data[word_position + 1] & second_word_bitmask) << first_word_num_bits;
+            let first_word_bitmask = (1 << first_word_num_bits) - 1;
+            let first_word_value_bits =
+                (*self.data.get_unchecked(word_position) >> first_word_bit_start_position) & first_word_bitmask; 
+            //construct the second word in an IF statement because otherwise the array
+            //could go out of bounds if the suffix array ends at this word.
+            if second_word_num_bits != 0 {
+                let second_word_bitmask = (1 << second_word_num_bits) - 1;
+                let second_word_value_bits =
+                    (self.data.get_unchecked(word_position + 1) & second_word_bitmask) << first_word_num_bits;
 
-            return Some(first_word_value_bits | second_word_value_bits);
-        } else {
-            return Some(first_word_value_bits);
+                return Some(first_word_value_bits | second_word_value_bits);
+            } else {
+                return Some(first_word_value_bits);
+            }
         }
     }
 
@@ -116,7 +121,7 @@ impl CompressedSuffixArray {
 
         return suffix_array_num_words;
     }
-    pub(crate) fn bits_per_element(bwt_len:usize) -> usize {
+    pub(crate) fn bits_per_element(bwt_len: usize) -> usize {
         let largest_value_in_suffix_array = bwt_len - 1;
         let num_leading_zeros = largest_value_in_suffix_array.leading_zeros() as usize;
         let bits_per_element = 64 - num_leading_zeros;
