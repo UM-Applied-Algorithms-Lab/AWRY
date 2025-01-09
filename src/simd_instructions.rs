@@ -6,8 +6,8 @@ use std::arch::x86_64::{
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint64x2x2_t, vandq_u64, vdupq_n_u64, vgetq_lane_u64, vld1q_u64_x2, vmvnq_u16, vorrq_u64,
-    vreinterpretq_u16_u64, vreinterpretq_u64_u16, vst1q_u64,
+    uint64x2x2_t, vandq_u64, vdupq_n_u64, vld1q_u64_x2, vmvnq_u16, vorrq_u64,
+    vreinterpretq_u16_u64, vreinterpretq_u64_u16,
 };
 
 use mem_dbg::MemSize;
@@ -211,7 +211,8 @@ impl SimdVec256 {
             popcount += (std::arch::aarch64::vgetq_lane_u64(self.data.1, 1)
                 & bitmasks.get_unchecked(3))
             .count_ones();
+            
+            return popcount;
         }
-        return popcount;
     }
 }
