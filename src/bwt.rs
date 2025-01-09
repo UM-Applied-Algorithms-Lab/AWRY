@@ -3,10 +3,11 @@ use crate::{
     search::SearchPtr,
     simd_instructions::{Vec256, SimdVec256},
 };
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 ///block for a Nucleotide BWT. contains 6 milestones (packed to 8 for alignment), and 3 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 #[repr(align(32))]
 pub (crate) struct NucleotideBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -14,7 +15,7 @@ pub (crate) struct NucleotideBwtBlock {
 }
 
 ///block for a Amino BWT. contains 22 milestones (packed to 24 for alignment), and 5 bit vectors
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 #[repr(align(32))]
 pub  (crate) struct AminoBwtBlock {
     bit_vectors: [Vec256; Self::NUM_BIT_VECTORS],
@@ -78,15 +79,20 @@ impl NucleotideBwtBlock {
     pub (crate) fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Nucleotide.cardinality() as usize);
 
-        for milestone_idx in 0..SymbolAlphabet::Nucleotide.cardinality() as usize {
-            self.milestones[milestone_idx] = values[milestone_idx];
+        unsafe{
+            for milestone_idx in 0..SymbolAlphabet::Nucleotide.cardinality() as usize {
+                *self.milestones.get_unchecked_mut(milestone_idx) = *values.get_unchecked(milestone_idx);  
+            }
         }
     }
 
     ///gets this block's milestone corresponding to the given symbol.
     #[inline]
     pub (crate) fn milestone(&self, symbol: &Symbol) -> u64 {
-        return self.milestones[symbol.index() as usize];
+        unsafe{
+            return *self.milestones.get_unchecked(symbol.index() as usize);  
+
+        }
     }
 
     /// gets a reference to the milestones array
@@ -104,10 +110,11 @@ impl NucleotideBwtBlock {
     /// determine how many instances of the given character were before this position.
     #[inline]
     pub  (crate) fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
+        unsafe{
         let milestone_count = self.milestone(&symbol);
-        let vec0 = SimdVec256::from(self.bit_vectors[0]);
-        let vec1 = SimdVec256::from(self.bit_vectors[1]);
-        let vec2 = SimdVec256::from(self.bit_vectors[2]);
+        let vec0 = SimdVec256::from(*self.bit_vectors.get_unchecked(0));
+        let vec1 = SimdVec256::from(*self.bit_vectors.get_unchecked(1));
+        let vec2 = SimdVec256::from(*self.bit_vectors.get_unchecked(2));
         let occurrence_vector = match &symbol.index() {
             1 => vec2.and(&vec1), //A:    0b110
             2 => vec2.and(&vec0), //C:    0b101
@@ -123,11 +130,12 @@ impl NucleotideBwtBlock {
 
         return milestone_count + popcount as u64;
     }
+    }
 }
 
 impl AminoBwtBlock {
-    pub  (crate) const NUM_MILESTONES: usize = 24;
-    pub  (crate) const NUM_BIT_VECTORS: usize = 5;
+    pub (crate) const NUM_MILESTONES: usize = 24;
+    pub (crate) const NUM_BIT_VECTORS: usize = 5;
 
     /// create a new bwt block, with data zeroed out
     pub  (crate) fn new() -> Self {
@@ -152,9 +160,12 @@ impl AminoBwtBlock {
     pub  (crate) fn symbol_at(&self, position_block: u64)->Symbol{
         let mut bit_vector_encoding: u64 = 0;
 
-        for bit in 0..self.bit_vectors.len() {
-            let bit_value = self.bit_vectors[bit].extract_bit(&position_block);
-            bit_vector_encoding |= bit_value << bit;
+        unsafe{
+            for bit in 0..self.bit_vectors.len() {
+                let bit_value = self.bit_vectors.get_unchecked(bit).extract_bit(&position_block); 
+                bit_vector_encoding |= bit_value << bit;
+            }
+
         }
 
         Symbol::new_bit_vector(SymbolAlphabet::Amino, bit_vector_encoding as u8)
@@ -167,12 +178,15 @@ impl AminoBwtBlock {
 
         //sets the bits in the bit-vectors based on the position and symbol given
         let mut bit_vector_idx = 0;
-        while encoded_symbol != 0 {
-            if encoded_symbol & 0x1 == 1 {
-                self.bit_vectors[bit_vector_idx].set_bit(&position_in_block);
+
+        unsafe{
+            while encoded_symbol != 0 {
+                if encoded_symbol & 0x1 == 1 {
+                    self.bit_vectors.get_unchecked_mut(bit_vector_idx).set_bit(&position_in_block); 
+                }
+                encoded_symbol >>= 1;
+                bit_vector_idx += 1;
             }
-            encoded_symbol >>= 1;
-            bit_vector_idx += 1;
         }
     }
 
@@ -181,16 +195,20 @@ impl AminoBwtBlock {
     #[inline]
     pub (crate) fn set_milestones(&mut self, values: &Vec<u64>) {
         debug_assert!(values.len() >= SymbolAlphabet::Amino.cardinality() as usize);
-
+        
         for milestone_idx in 0..SymbolAlphabet::Amino.cardinality() as usize {
-            self.milestones[milestone_idx] = values[milestone_idx];
+            unsafe{
+                *self.milestones.get_unchecked_mut(milestone_idx) = *values.get_unchecked(milestone_idx);   
+            }
         }
     }
 
     /// returns the milestone value corresponding to the given symbol
     #[inline]
     pub  (crate) fn milestone(&self, symbol: &Symbol) -> u64 {
-        return self.milestones[symbol.index() as usize];
+        unsafe{
+            return *self.milestones.get_unchecked(symbol.index() as usize); 
+        }
     }
 
     /// returns a slice view of the milestones for this block
@@ -209,47 +227,50 @@ impl AminoBwtBlock {
     #[inline]
     pub  (crate) fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let milestone_count = self.milestone(symbol);
-        let vec0 = SimdVec256::from(self.bit_vectors[0]);
-        let vec1 = SimdVec256::from(self.bit_vectors[1]);
-        let vec2 = SimdVec256::from(self.bit_vectors[2]);
-        let vec3 = SimdVec256::from(self.bit_vectors[3]);   
-        let vec4 = SimdVec256::from(self.bit_vectors[4]);
-        let occurrence_vector = match symbol.index() {
-            1 => vec3.and(&vec4.andnot(&vec2)), //A:    0b01100
-            2 => vec3.andnot(&vec2).and(&vec1.and(&vec0)), //C:    0b10111
-            3 => vec1.and(&vec4.andnot(&vec0)), //D:    0b00011
-            4 => vec4.andnot(&vec2.and(&vec1)), //E: 0b00110
-            5 => vec0.andnot(&vec3).and(&vec2.and(&vec1)), //F:    0b11110
-            6 => vec2.andnot(&vec0.andnot(&vec4)), //G:    0b11010
-            7 => vec2.andnot(&vec3).and(&vec1.and(&vec0)), //H: 0b11011
-            8 => vec2.andnot(&vec1.andnot(&vec4)), //I:    0b11001
-            9 => vec3.andnot(&vec1.andnot(&vec4)), //K:    0b10101
-            10 => vec1.andnot(&vec0.andnot(&vec4)), //L:    0b11100
-            11 => vec1.andnot(&vec3).and(&vec2.and(&vec0)), //M:    0b11101
-            12 => vec0.or(&vec1).andnot(&vec2.andnot(&vec3)), //N:    0b01000
-            13 => vec3.and(&vec4.andnot(&vec0)), //P:    0b01001,
-            14 => vec3.or(&vec1).andnot(&vec0.andnot(&vec2)), //Q:    0b00100
-            15 => vec3.andnot(&vec2.andnot(&vec4)), //R:    0b10011
-            16 => vec3.and(&vec4.andnot(&vec1)), //S:    0b01010
-            17 => vec2.and(&vec4.andnot(&vec0)), //T:    0b00101
-            18 => vec3.andnot(&vec0.andnot(&vec4)), //V:    0b10110
-            19 => vec3.or(&vec2).andnot(&vec1.andnot(&vec0)), //W:    0b00001
-            20 => vec3.and(&vec2).and(&vec1.and(&vec0)), //Ambiguity character X:  0b11111
-            21 => vec0.or(&vec2).andnot(&vec3.andnot(&vec1)), //Y:    0b00010
-            // 0b00000 is sentinel, but since you can't search for sentinels, it is not included here.
-            _ => {
-                panic!("illegal letter index given in global occurrence function");
-            }
+
+        unsafe{
+            let vec0 = SimdVec256::from(*self.bit_vectors.get_unchecked(0));
+            let vec1 = SimdVec256::from(*self.bit_vectors.get_unchecked(1));
+            let vec2 = SimdVec256::from(*self.bit_vectors.get_unchecked(2));
+            let vec3 = SimdVec256::from(*self.bit_vectors.get_unchecked(3));   
+            let vec4 = SimdVec256::from(*self.bit_vectors.get_unchecked(4));
+            let occurrence_vector = match symbol.index() {
+                1 => vec3.and(&vec4.andnot(&vec2)), //A:    0b01100
+                2 => vec3.andnot(&vec2).and(&vec1.and(&vec0)), //C:    0b10111
+                3 => vec1.and(&vec4.andnot(&vec0)), //D:    0b00011
+                4 => vec4.andnot(&vec2.and(&vec1)), //E: 0b00110
+                5 => vec0.andnot(&vec3).and(&vec2.and(&vec1)), //F:    0b11110
+                6 => vec2.andnot(&vec0.andnot(&vec4)), //G:    0b11010
+                7 => vec2.andnot(&vec3).and(&vec1.and(&vec0)), //H: 0b11011
+                8 => vec2.andnot(&vec1.andnot(&vec4)), //I:    0b11001
+                9 => vec3.andnot(&vec1.andnot(&vec4)), //K:    0b10101
+                10 => vec1.andnot(&vec0.andnot(&vec4)), //L:    0b11100
+                11 => vec1.andnot(&vec3).and(&vec2.and(&vec0)), //M:    0b11101
+                12 => vec0.or(&vec1).andnot(&vec2.andnot(&vec3)), //N:    0b01000
+                13 => vec3.and(&vec4.andnot(&vec0)), //P:    0b01001,
+                14 => vec3.or(&vec1).andnot(&vec0.andnot(&vec2)), //Q:    0b00100
+                15 => vec3.andnot(&vec2.andnot(&vec4)), //R:    0b10011
+                16 => vec3.and(&vec4.andnot(&vec1)), //S:    0b01010
+                17 => vec2.and(&vec4.andnot(&vec0)), //T:    0b00101
+                18 => vec3.andnot(&vec0.andnot(&vec4)), //V:    0b10110
+                19 => vec3.or(&vec2).andnot(&vec1.andnot(&vec0)), //W:    0b00001
+                20 => vec3.and(&vec2).and(&vec1.and(&vec0)), //Ambiguity character X:  0b11111
+                21 => vec0.or(&vec2).andnot(&vec3.andnot(&vec1)), //Y:    0b00010
+                // 0b00000 is sentinel, but since you can't search for sentinels, it is not included here.
+                _ => {
+                    panic!("illegal letter index given in global occurrence function");
+                }
         };
-
+        
         let popcount = occurrence_vector.masked_popcount(local_query_position);
-
+        
         return milestone_count + popcount as u64;
+        }
     }
 }
 
 /// enum representing a BWT, either as Nucleotide symbols or Amino symbols
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, MemSize)]
 #[serde(untagged)]
 pub (crate) enum Bwt {
     Nucleotide(Vec<NucleotideBwtBlock>),
@@ -268,10 +289,11 @@ impl Bwt {
         //find the block, byte, and bit of the data we're setting
         let bwt_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
         let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK;
-
-        match self{
-            Bwt::Nucleotide(vec) =>  vec[bwt_block_idx as usize].set_symbol_at(symbol, position_in_block),
-            Bwt::Amino(vec) => vec[bwt_block_idx as usize].set_symbol_at(symbol, position_in_block),
+        unsafe{
+            match self{
+                Bwt::Nucleotide(vec) =>  vec.get_unchecked_mut(bwt_block_idx as usize).set_symbol_at(symbol, position_in_block),
+                Bwt::Amino(vec) => vec.get_unchecked_mut(bwt_block_idx as usize).set_symbol_at(symbol, position_in_block),
+            }
         }
     }
 
@@ -285,43 +307,49 @@ impl Bwt {
         let position_block_idx = bwt_position / Self::NUM_SYMBOLS_PER_BLOCK;
         let position_in_block = bwt_position % Self::NUM_SYMBOLS_PER_BLOCK;
 
-        match &self {
-            Bwt::Nucleotide(vec) => {
-                let bwt_block = &vec[position_block_idx as usize];
-                bwt_block.symbol_at(position_in_block)
-            }
+        unsafe{
+            match &self {
+                Bwt::Nucleotide(vec) => {
+                    let bwt_block = vec.get_unchecked(position_block_idx as usize);
+                    bwt_block.symbol_at(position_in_block)
+                }
 
-            Bwt::Amino(vec) => {
-                let bwt_block = &vec[position_block_idx as usize];
-                bwt_block.symbol_at(position_in_block)
+                Bwt::Amino(vec) => {
+                    let bwt_block = vec.get_unchecked(position_block_idx as usize);
+                    bwt_block.symbol_at(position_in_block)
+                }
             }
         }
     }
 
     ///sets the milestone values based on the given counts array
     pub  (crate) fn set_milestones(&mut self, block_idx: usize, counts: &Vec<u64>) {
-        match self {
-            Bwt::Nucleotide(vec) => vec[block_idx].set_milestones(counts),
-            Bwt::Amino(vec) => vec[block_idx].set_milestones(counts),
+        unsafe{
+            match self {
+                Bwt::Nucleotide(vec) => vec.get_unchecked_mut(block_idx).set_milestones(counts), 
+                Bwt::Amino(vec) => vec.get_unchecked_mut(block_idx).set_milestones(counts), 
+            }
         }
     }
 
     /// finds the total occurrence value for the given symbol at the specified global position
-    pub  (crate) fn global_occurrence(
+    pub (crate) fn global_occurrence(
         &self,
         pointer_global_position: SearchPtr,
         symbol: &Symbol,
     ) -> SearchPtr {
         let block_idx: u64 = pointer_global_position / Self::NUM_SYMBOLS_PER_BLOCK;
         let local_query_position: u64 = pointer_global_position % Self::NUM_SYMBOLS_PER_BLOCK;
+        unsafe{
 
-        match self {
-            Bwt::Nucleotide(vec) => {
-                vec[block_idx as usize].global_occurrence(local_query_position, symbol)
-            }
-
-            Bwt::Amino(vec) => {
-                vec[block_idx as usize].global_occurrence(local_query_position, symbol)
+            match self {
+                Bwt::Nucleotide(vec) => {
+                    vec.get_unchecked(block_idx as usize).global_occurrence(local_query_position, symbol)
+                }
+                
+                Bwt::Amino(vec) => {
+                    vec.get_unchecked(block_idx as usize).global_occurrence(local_query_position, symbol)
+                }
             }
         }
     }

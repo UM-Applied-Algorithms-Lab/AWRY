@@ -3,6 +3,7 @@ use std::{
     io::{Error, Read},
 };
 
+use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     search::SearchRange,
 };
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default, MemSize)]
 ///Table storing precomputed SearchRanges for all kmers of a given length.
 pub(crate) struct KmerLookupTable {
     range_table: Vec<SearchRange>,
