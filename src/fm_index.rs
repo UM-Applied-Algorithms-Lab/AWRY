@@ -4,7 +4,7 @@ use libsufr::sufr_builder::{SufrBuilder, SufrBuilderArgs};
 use libsufr::sufr_file::SufrFile;
 use libsufr::util::read_sequence_file;
 use mem_dbg::MemSize;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -140,7 +140,6 @@ impl FmIndex {
     /// let fm_index = FmIndex::new(&build_args).expect("unable to build fm index");
     /// ```
     pub fn new(args: &FmBuildArgs) -> Result<Self, anyhow::Error> {
-        println!("building fm index");
         let suffix_array_src = args
             .suffix_array_output_src
             .clone()
@@ -151,12 +150,7 @@ impl FmIndex {
         } else {
             b'X'
         };
-        println!("reading sequence file");
-        let seq_data = read_sequence_file(
-            &args.input_file_src,
-            sequence_delimiter,
-        )?;
-        println!("creating sequence index");
+        let seq_data = read_sequence_file(&args.input_file_src, sequence_delimiter)?;
         let sequence_index = SequenceIndex::from_seq_file_data(&seq_data);
 
         let sufr_builder_args = SufrBuilderArgs {
@@ -172,15 +166,12 @@ impl FmIndex {
             seed_mask: None,
             random_seed: 0,
         };
-        println!("creating sufr builder");
         let sufr_builder: SufrBuilder<u64> = SufrBuilder::new(sufr_builder_args)?;
-        println!("writing sufr file");
         sufr_builder.write(
             &suffix_array_src
                 .to_str()
                 .expect("unable to parse suffix array src to string"),
         )?;
-        println!("reading sufr file");
         //"low_memory" arg on read(), if true, keeps the SA and sequence on-disk, which is not what we usually want.
         let sufr_file: SufrFile<u64> = SufrFile::read(
             &suffix_array_src
@@ -192,13 +183,11 @@ impl FmIndex {
         let sa_compression_ratio = args
             .suffix_array_compression_ratio
             .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
-        println!("creating compressed suffix array");
         let mut compressed_suffix_array =
             CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as usize);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
-        println!("creating bwt");
         let mut bwt = match args.alphabet {
             SymbolAlphabet::Nucleotide => {
                 Bwt::Nucleotide(vec![NucleotideBwtBlock::new(); num_bwt_blocks as usize])
@@ -210,7 +199,6 @@ impl FmIndex {
 
         let alphabet_cardinality = args.alphabet.cardinality();
         let mut letter_counts = vec![0; alphabet_cardinality as usize];
-        println!("populating kmer lookup table");
         let mut suffix_array_file_access = sufr_file.suffix_array_file;
         for (suffix_idx, suffix_array_value) in suffix_array_file_access.iter().enumerate() {
             //generate the sampled suffix array
@@ -435,14 +423,17 @@ impl FmIndex {
     /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let counts = fm_index.parallel_count(&queries);    
+    /// let counts = fm_index.parallel_count(queries);    
     /// for count in counts{
     ///     println!("count: {}", count);
     /// }
     /// ```
-    pub fn parallel_count(&self, queries: &Vec<&str>) -> Vec<u64> {
+    pub fn parallel_count<IterType>(&self, queries: IterType) -> Vec<u64>
+    where
+        IterType: IntoParallelIterator<Item = &'static str>,
+    {
         queries
-            .par_iter()
+            .into_par_iter()
             .map(|query| self.count_string(&query))
             .collect()
     }
@@ -456,17 +447,23 @@ impl FmIndex {
     /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let query_location_list = fm_index.parallel_locate(&queries);
+    /// let query_location_list = fm_index.parallel_locate(queries);
     /// for locations_for_query in query_location_list{
     ///     for location in locations_for_query{
     ///         println!("location: {:?}", location);
     ///     }
     /// }
     /// ```
-    pub fn parallel_locate(&self, queries: &Vec<&str>) -> Vec<Vec<LocalizedSequencePosition>> {
+    pub fn parallel_locate<IterType>(
+        &self,
+        queries: IterType,
+    ) -> Vec<Vec<LocalizedSequencePosition>>
+    where
+        IterType: IntoParallelIterator<Item = &'static str>,
+    {
         queries
-            .par_iter()
-            .map(|query| self.locate_string(&query))
+            .into_par_iter()
+            .map(|query| self.locate_string(query))
             .collect()
     }
 
