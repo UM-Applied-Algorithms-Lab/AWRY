@@ -419,18 +419,18 @@ impl FmIndex {
     /// # Example
     /// ```no_run
     /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use rayon::prelude::*;
     /// use std::path::Path;
     /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let counts = fm_index.parallel_count(queries);    
+    /// let counts = fm_index.parallel_count(queries.par_iter().copied());    
     /// for count in counts{
     ///     println!("count: {}", count);
     /// }
     /// ```
-    pub fn parallel_count<IterType>(&self, queries: IterType) -> Vec<u64>
-    where
-        IterType: IntoParallelIterator<Item = &'static str>,
+    pub fn parallel_count<'a>(&self, queries: impl ParallelIterator<Item= &'a str>) -> Vec<u64> 
+    
     {
         queries
             .into_par_iter()
@@ -443,23 +443,22 @@ impl FmIndex {
     /// # Example
     /// ```no_run
     /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use rayon::prelude::*;
     /// use std::path::Path;
     /// let queries = vec!["ACGT", "ACGT"];
     ///
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
-    /// let query_location_list = fm_index.parallel_locate(queries);
+    /// let query_location_list = fm_index.parallel_locate(queries.par_iter().copied());
     /// for locations_for_query in query_location_list{
     ///     for location in locations_for_query{
     ///         println!("location: {:?}", location);
     ///     }
     /// }
     /// ```
-    pub fn parallel_locate<IterType>(
+    pub fn parallel_locate<'a>(
         &self,
-        queries: IterType,
+        queries: impl ParallelIterator<Item= &'a str>,
     ) -> Vec<Vec<LocalizedSequencePosition>>
-    where
-        IterType: IntoParallelIterator<Item = &'static str>,
     {
         queries
             .into_par_iter()
