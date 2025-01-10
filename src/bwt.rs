@@ -1,7 +1,9 @@
+
+
 use crate::{
     alphabet::{Symbol, SymbolAlphabet},
     search::SearchPtr,
-    simd_instructions::{Vec256, SimdVec256},
+    simd_instructions::{masked_popcount, simd_and, simd_andnot, simd_or, Vec256},
 };
 use mem_dbg::MemSize;
 use serde::{Deserialize, Serialize};
@@ -112,21 +114,21 @@ impl NucleotideBwtBlock {
     pub  (crate) fn global_occurrence(&self, local_query_position: u64, symbol: &Symbol) -> u64 {
         unsafe{
         let milestone_count = self.milestone(&symbol);
-        let vec0 = SimdVec256::from(*self.bit_vectors.get_unchecked(0));
-        let vec1 = SimdVec256::from(*self.bit_vectors.get_unchecked(1));
-        let vec2 = SimdVec256::from(*self.bit_vectors.get_unchecked(2));
+        let vec0 = self.bit_vectors.get_unchecked(0).to_simd();
+        let vec1 = self.bit_vectors.get_unchecked(1).to_simd();
+        let vec2 = self.bit_vectors.get_unchecked(2).to_simd();
         let occurrence_vector = match &symbol.index() {
-            1 => vec2.and(&vec1), //A:    0b110
-            2 => vec2.and(&vec0), //C:    0b101
-            3 => vec1.and(&vec0), //G:    0b011
-            4 => vec2.andnot(&vec0.andnot(&vec1)), //N:    0b010
-            5 => vec2.andnot(&vec1.andnot(&vec0)), //T:    0b001
+            1 => simd_and(vec1, vec2),  //A:    0b110
+            2 => simd_and(vec0, vec2), //C:    0b101
+            3 => simd_and(vec0, vec1), //G:    0b011
+            4 => simd_andnot(vec2, simd_andnot(vec0, vec1)), //N:    0b010
+            5 => simd_andnot(vec2, simd_andnot(vec1, vec0)), //T:    0b001
             _ => {
                 panic!("illegal letter index given in global occurrence function symbol idx given: {}", symbol.index());
             } //assume every other character is an N, since it's illegal to search for a sentinel
         };
 
-        let popcount = occurrence_vector.masked_popcount(local_query_position);
+        let popcount = masked_popcount(occurrence_vector, local_query_position);
 
         return milestone_count + popcount as u64;
     }
@@ -225,44 +227,44 @@ impl AminoBwtBlock {
     /// The occurrence function uses the milestone value and the masked occurrenc vector to
     /// determine how many instances of the given character were before this position.
     #[inline]
-    pub  (crate) fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
+    pub (crate) fn global_occurrence(&self, local_query_position: SearchPtr, symbol: &Symbol) -> SearchPtr {
         let milestone_count = self.milestone(symbol);
 
         unsafe{
-            let vec0 = SimdVec256::from(*self.bit_vectors.get_unchecked(0));
-            let vec1 = SimdVec256::from(*self.bit_vectors.get_unchecked(1));
-            let vec2 = SimdVec256::from(*self.bit_vectors.get_unchecked(2));
-            let vec3 = SimdVec256::from(*self.bit_vectors.get_unchecked(3));   
-            let vec4 = SimdVec256::from(*self.bit_vectors.get_unchecked(4));
+            let vec0 = self.bit_vectors.get_unchecked(0).to_simd();
+            let vec1 = self.bit_vectors.get_unchecked(1).to_simd();
+            let vec2 = self.bit_vectors.get_unchecked(2).to_simd();
+            let vec3 = self.bit_vectors.get_unchecked(3).to_simd();   
+            let vec4 = self.bit_vectors.get_unchecked(4).to_simd();
             let occurrence_vector = match symbol.index() {
-                1 => vec3.and(&vec4.andnot(&vec2)), //A:    0b01100
-                2 => vec3.andnot(&vec2).and(&vec1.and(&vec0)), //C:    0b10111
-                3 => vec1.and(&vec4.andnot(&vec0)), //D:    0b00011
-                4 => vec4.andnot(&vec2.and(&vec1)), //E: 0b00110
-                5 => vec0.andnot(&vec3).and(&vec2.and(&vec1)), //F:    0b11110
-                6 => vec2.andnot(&vec0.andnot(&vec4)), //G:    0b11010
-                7 => vec2.andnot(&vec3).and(&vec1.and(&vec0)), //H: 0b11011
-                8 => vec2.andnot(&vec1.andnot(&vec4)), //I:    0b11001
-                9 => vec3.andnot(&vec1.andnot(&vec4)), //K:    0b10101
-                10 => vec1.andnot(&vec0.andnot(&vec4)), //L:    0b11100
-                11 => vec1.andnot(&vec3).and(&vec2.and(&vec0)), //M:    0b11101
-                12 => vec0.or(&vec1).andnot(&vec2.andnot(&vec3)), //N:    0b01000
-                13 => vec3.and(&vec4.andnot(&vec0)), //P:    0b01001,
-                14 => vec3.or(&vec1).andnot(&vec0.andnot(&vec2)), //Q:    0b00100
-                15 => vec3.andnot(&vec2.andnot(&vec4)), //R:    0b10011
-                16 => vec3.and(&vec4.andnot(&vec1)), //S:    0b01010
-                17 => vec2.and(&vec4.andnot(&vec0)), //T:    0b00101
-                18 => vec3.andnot(&vec0.andnot(&vec4)), //V:    0b10110
-                19 => vec3.or(&vec2).andnot(&vec1.andnot(&vec0)), //W:    0b00001
-                20 => vec3.and(&vec2).and(&vec1.and(&vec0)), //Ambiguity character X:  0b11111
-                21 => vec0.or(&vec2).andnot(&vec3.andnot(&vec1)), //Y:    0b00010
+                1 => simd_and(vec2,simd_andnot(vec4, vec3)), //A:    0b01100
+                2 => simd_andnot(vec3, simd_and(simd_and(vec0, vec1), vec2)), //C:    0b10111
+                3 => simd_andnot(vec4, simd_and(vec0, vec1)), //D:    0b00011
+                4 => simd_andnot(vec4, simd_and(vec1, vec2)), //E: 0b00110
+                5 => simd_andnot(vec0, simd_and(simd_and(vec1, vec2), vec3)), //F:    0b11110
+                6 => simd_andnot(vec2, simd_andnot(vec0, vec4)), //G:    0b11010
+                7 => simd_andnot(vec2, simd_and(vec0, simd_and(vec1, vec3))), //H: 0b11011
+                8 => simd_andnot(vec2, simd_andnot(vec1, vec4)), //I:    0b11001
+                9 => simd_andnot(vec1, simd_andnot(vec3, vec4)), //K:    0b10101
+                10 => simd_andnot(vec1, simd_andnot(vec0, vec4)), //L:    0b11100
+                11 => simd_andnot(vec1, simd_and(vec3, simd_and(vec2, vec0))), //M:    0b11101
+                12 => simd_andnot(simd_or(vec0, vec1), simd_andnot(vec2, vec3)), //N:    0b01000
+                13 => simd_and(vec3, simd_andnot(vec4, vec0)), //P:    0b01001,
+                14 => simd_andnot(simd_or(vec0, vec1), simd_andnot(vec3, vec2)),//Q:    0b00100
+                15 => simd_andnot(vec2, simd_andnot(vec3, vec4)), //R:    0b10011
+                16 => simd_and(vec1, simd_andnot(vec4, vec3)), //S:    0b01010
+                17 => simd_and(vec0, simd_andnot(vec4, vec2)), //T:    0b00101
+                18 => simd_andnot(vec3, simd_andnot(vec0, vec4)), //V:    0b10110
+                19 => simd_andnot(simd_or(vec1, vec2), simd_andnot(vec3, vec0)), //W:    0b00001
+                20 => simd_and(simd_and(vec0, vec1), simd_and(vec2, vec3)), //Ambiguity character X:  0b11111
+                21 => simd_andnot(simd_or(vec0, vec2), simd_andnot(vec3, vec1)), //Y:    0b00010
                 // 0b00000 is sentinel, but since you can't search for sentinels, it is not included here.
                 _ => {
                     panic!("illegal letter index given in global occurrence function");
                 }
         };
         
-        let popcount = occurrence_vector.masked_popcount(local_query_position);
+        let popcount = masked_popcount(occurrence_vector, local_query_position);
         
         return milestone_count + popcount as u64;
         }

@@ -390,7 +390,9 @@ impl FmIndex {
             let mut search_range =
                 SearchRange::new(self, Symbol::new_index(alphabet, final_query_index));
             for query_char in query.chars().rev().skip(1) {
-                if !search_range.is_empty() {
+                if search_range.is_empty() {
+                    break;
+                } else {
                     let query_symbol = Symbol::new_ascii(alphabet, query_char);
                     search_range = self.update_range_with_symbol(search_range, query_symbol);
                 }
@@ -404,10 +406,14 @@ impl FmIndex {
                 .rev()
                 .skip(self.kmer_lookup_table.kmer_len() as usize)
             {
-                search_range = self.update_range_with_symbol(
-                    search_range,
-                    Symbol::new_ascii(self.alphabet(), query_char),
-                );
+                if search_range.is_empty() {
+                    break;
+                } else {
+                    search_range = self.update_range_with_symbol(
+                        search_range,
+                        Symbol::new_ascii(self.alphabet(), query_char),
+                    );
+                }
             }
 
             return search_range;
@@ -429,9 +435,7 @@ impl FmIndex {
     ///     println!("count: {}", count);
     /// }
     /// ```
-    pub fn parallel_count<'a>(&self, queries: impl ParallelIterator<Item= &'a str>) -> Vec<u64> 
-    
-    {
+    pub fn parallel_count<'a>(&self, queries: impl ParallelIterator<Item = &'a str>) -> Vec<u64> {
         queries
             .into_par_iter()
             .map(|query| self.count_string(&query))
@@ -457,9 +461,8 @@ impl FmIndex {
     /// ```
     pub fn parallel_locate<'a>(
         &self,
-        queries: impl ParallelIterator<Item= &'a str>,
-    ) -> Vec<Vec<LocalizedSequencePosition>>
-    {
+        queries: impl ParallelIterator<Item = &'a str>,
+    ) -> Vec<Vec<LocalizedSequencePosition>> {
         queries
             .into_par_iter()
             .map(|query| self.locate_string(query))

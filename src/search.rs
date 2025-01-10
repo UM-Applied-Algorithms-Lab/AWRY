@@ -60,6 +60,7 @@ impl SearchRange {
     }
 
     ///gets the number of elements represented by the search range
+    #[inline]
     pub  (crate) fn len(&self) -> SearchPtr {
         match self.is_empty() {
             true => 0,
@@ -68,6 +69,7 @@ impl SearchRange {
     }
 
     /// Returns an interator over the BWT positions corresponding to this search range
+    #[inline]
     pub  (crate) fn range_iter(&self) -> core::ops::Range<SearchPtr> {
         match self.is_empty() {
             true => 0..0,

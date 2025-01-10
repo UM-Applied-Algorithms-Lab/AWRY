@@ -3,7 +3,7 @@
 
 Generates an Fm-Index of a given biological sequence text (Fasta or Fastq file), and implements Locate() and Search() functionalities.
 
-AWRY is a port of a state-of-the-art, fastest in its class FM-index implementation (https://doi.org/10.1186/s13015-021-00204-6). AWRY supports parallelized searching, with parallel_count() and parallel_locate() functions.
+AWRY is a port of a state-of-the-art, fastest in its class FM-index implementation (https://doi.org/10.1186/s13015-021-00204-6). AWRY supports parallelized searching, with parallel_count() and parallel_locate() functions. As AWRY is powered by custom SIMD operations, the library currently supports x86_64 and aarch64 machines with AVX2 and ARM Neon.
 
 AWRY supports DNA, RNA, and protein alphabets, and is able to search at lightning speed by leveraging SIMD vectorization and multithreading over collections of queries. These alphabets are case-insensitive- `A` and `a` are considered the same symbol under the hood.
 
