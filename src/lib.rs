@@ -1,4 +1,3 @@
-#![feature(core_intrinsics)]
 
 pub mod alphabet;
 pub mod bwt;
