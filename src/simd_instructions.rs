@@ -4,9 +4,10 @@ use std::arch::x86_64::{
     _mm256_or_si256,
 };
 
+//vdupq_n_u64, vmvnq_u16
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::{
-    uint64x2x2_t, vandq_u64, vdupq_n_u64, vld1q_u64_x2, vmvnq_u16, vmvnq_u8, vorrq_u64,
+    uint64x2x2_t, vandq_u64, vld1q_u64_x2, vmvnq_u8, vorrq_u64,
     vreinterpretq_u16_u64, vreinterpretq_u64_u16,
 };
 
@@ -50,7 +51,7 @@ impl Vec256 {
     #[cfg(target_arch = "aarch64")]
     #[target_feature(enable = "neon")]
     pub(crate) unsafe fn to_simd(&self) -> SimdVec256 {
-        vld1q_u64_x2(value.data.as_ptr() as *const u64)
+        vld1q_u64_x2(self.data.as_ptr() as *const u64)
     }
 
     /// Extracts the bit at the given bit index
@@ -124,16 +125,16 @@ pub(crate) unsafe fn masked_popcount(simd_vec: SimdVec256, local_query_position:
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn simd_and(vec1: SimdVec256, vec2: SimdVec256) -> SimdVec256 {
     uint64x2x2_t {
-        0: vandq_u64(self.data.0, vec2.data.0),
-        1: vandq_u64(self.data.1, vec2.data.1),
+        0: vandq_u64(vec1.0, vec2.0),
+        1: vandq_u64(vec1.1, vec2.1),
     }
 }
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
 pub(crate) unsafe fn simd_or(vec1: SimdVec256, vec2: SimdVec256) -> SimdVec256 {
     uint64x2x2_t {
-        0: vorrq_u64(self.data.0, vec2.data.0),
-        1: vorrq_u64(self.data.1, vec2.data.1),
+        0: vorrq_u64(vec1.0, vec2.0),
+        1: vorrq_u64(vec1.1, vec2.1),
     }
 }
 #[cfg(target_arch = "aarch64")]
@@ -141,11 +142,11 @@ pub(crate) unsafe fn simd_or(vec1: SimdVec256, vec2: SimdVec256) -> SimdVec256 {
 pub(crate) unsafe fn simd_andnot(vec1: SimdVec256, vec2: SimdVec256) -> SimdVec256 {
     uint64x2x2_t {
         0: vandq_u64(
-            vreinterpretq_u64_u16(vmvnq_u8(vreinterpretq_u16_u64(vec1.0))),
+            vreinterpretq_u64_u16(vmvnq_u16(vreinterpretq_u16_u64(vec1.0))),
             vec2.0,
         ),
         1: vandq_u64(
-            vreinterpretq_u64_u16(vmvnq_u8(vreinterpretq_u16_u64(vec1.1))),
+            vreinterpretq_u64_u16(vmvnq_u16(vreinterpretq_u16_u64(vec1.1))),
             vec2.1,
         ),
     }
