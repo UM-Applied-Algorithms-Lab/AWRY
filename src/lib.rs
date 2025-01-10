@@ -1,3 +1,5 @@
+#![feature(core_intrinsics)]
+
 pub mod alphabet;
 pub mod bwt;
 pub mod compressed_suffix_array;
