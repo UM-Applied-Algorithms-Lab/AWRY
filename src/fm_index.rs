@@ -367,6 +367,23 @@ impl FmIndex {
         &self.prefix_sums
     }
 
+    /// Gets the initial search range for the given character.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// use awry::fm_index::{FmIndex, FmBuildArgs};
+    /// use awry::alphabet::SymbolAlphabet;
+    /// use std::path::Path;
+    /// use awry::search::SearchRange;
+    /// use awry::alphabet::Symbol;
+    ///
+    /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
+    /// let initial_search_range = fm_index.initial_search_range(Symbol::new_ascii(SymbolAlphabet::Nucleotide, 'A'));
+    /// ```
+    pub fn initial_search_range(&self, s:Symbol)->SearchRange{
+        return SearchRange::new(self, s);
+    }
+
     /// Gets a reference to the compressed suffix array.
     pub(crate) fn sampled_suffix_array(&self) -> &CompressedSuffixArray {
         &self.sampled_suffix_array
