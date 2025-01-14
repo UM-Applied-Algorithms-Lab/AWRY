@@ -172,7 +172,7 @@ impl FmIndex {
 
                 //Matches version 1
                 return [self.version_number(), 
-                self.suffix_array_compression_ratio() as u64, 
+                self.suffix_array_compression_ratio(), 
                 self.bwt_len(), 
                 alphabet_idx];
 
@@ -187,7 +187,7 @@ impl FmIndex {
                 let mut u64_buffer: [u8; 8] = [0; 8];
                 //currently only version 1 is supported.
                 fm_index_file.read_exact(&mut u64_buffer)?;
-                let suffix_array_compression_ratio = usize::from_le_bytes(u64_buffer);
+                let suffix_array_compression_ratio = u64::from_le_bytes(u64_buffer);
 
                 fm_index_file.read_exact(&mut u64_buffer)?;
                 let bwt_len =  u64::from_le_bytes(u64_buffer);

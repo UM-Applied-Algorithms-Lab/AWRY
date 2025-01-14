@@ -20,7 +20,7 @@ aligned = "0.4.2"
 rand = "0.8.5"
 serde = { version = "1.0.215", features = ["derive"] }
 mem_dbg = "0.2.4"
-libsufr = "0.6.1"
+libsufr = "0.6.2"
 
 [lib]
 crate-type = ["lib"]

@@ -81,7 +81,7 @@ pub struct FmBuildArgs {
     ///file source to output the intermediate suffix array file.
     pub suffix_array_output_src: Option<PathBuf>,
     ///How much to downsample the suffix array. downsampling increases locate() time but decreases memory usage
-    pub suffix_array_compression_ratio: Option<u8>,
+    pub suffix_array_compression_ratio: Option<u64>,
     ///Kmer length in the lookup table. Skips the first k search steps at the cost of exponential memory.
     /// If None, uses sensible defaults.
     pub lookup_table_kmer_len: Option<u8>,
@@ -100,7 +100,7 @@ impl FmBuildArgs {
     pub fn new(
         input_file_src: PathBuf,
         suffix_array_output_src: Option<PathBuf>,
-        suffix_array_compression_ratio: Option<u8>,
+        suffix_array_compression_ratio: Option<u64>,
         lookup_table_kmer_len: Option<u8>,
         alphabet: SymbolAlphabet,
         max_query_len: Option<usize>,
@@ -119,7 +119,7 @@ impl FmBuildArgs {
 }
 
 impl FmIndex {
-    const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u8 = 8;
+    const DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO: u64 = 8;
 
     /// Construct a new FM-index using the supplied build args.
     ///
@@ -184,7 +184,7 @@ impl FmIndex {
             .suffix_array_compression_ratio
             .unwrap_or(Self::DEFAULT_SUFFIX_ARRAY_COMPRESSION_RATIO);
         let mut compressed_suffix_array =
-            CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio as usize);
+            CompressedSuffixArray::new(bwt_len as usize, sa_compression_ratio);
 
         //find the number of blocks needed (integer ceiling funciton)
         let num_bwt_blocks = bwt_len.div_ceil(Bwt::NUM_SYMBOLS_PER_BLOCK);
@@ -316,7 +316,7 @@ impl FmIndex {
     /// let fm_index = FmIndex::load(&Path::new("test.awry")).expect("unable to load fm index from file");
     /// let suffix_array_compression_ratio = fm_index.suffix_array_compression_ratio();
     /// ```
-    pub fn suffix_array_compression_ratio(&self) -> usize {
+    pub fn suffix_array_compression_ratio(&self) -> u64 {
         self.sampled_suffix_array.compression_ratio()
     }
 
