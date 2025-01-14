@@ -1,6 +1,6 @@
 [package]
 name = "awry"
-version = "0.3.0"
+version = "0.3.1"
 description = "Library for creating FM-indexes from FASTA/FASTQ files. AWRY is able to search at lightning speed by leveraging SIMD vectorization and multithreading over collections of queries."
 license = "BSD-3-Clause"
 homepage = "https://github.com/UM-Applied-Algorithms-Lab/AWRY_Index"
